@@ -1,337 +1,361 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { soundPackShake, soundTear, soundCardSlide } from '../utils/sounds.js';
+import { soundBolt, soundCrane, soundHookAttach, soundCardSlide, soundPackHover } from '../utils/sounds.js';
 
-const PW = 168;
-const PH = 268;
-const TEAR_Y = 52;   // where the top is ripped off (in px from top)
+// Pack is portrait, same proportions as a real booster pack (approx 63×88mm scaled up)
+const PW = 162;
+const PH = 252;
+const BOLT_Y = 22;        // y of bolt row from top
+const BOLT_XS = [28, 62, 100, 134]; // x positions of 4 bolts
 
-// ── Particle system ──────────────────────────────────────────────────────────
+// ── Particle system ───────────────────────────────────────────────────────────
 function useParticles() {
   const [particles, setParticles] = useState([]);
-  const idRef = useRef(0);
-
-  const burst = useCallback((x, y, count = 28) => {
-    const colors = ['#c9a833','#e8c040','#fff7c0','#4fa8e8','#b57bee','#ff9d6e','#6fcf7f'];
-    const newP = Array.from({ length: count }, () => {
+  const id = useRef(0);
+  const burst = useCallback((x, y, count = 24) => {
+    const cols = ['#c9a833','#e8c040','#fff7c0','#4fa8e8','#b57bee','#ff9d6e','#6fcf7f','#ffffff'];
+    setParticles(p => [...p, ...Array.from({ length: count }, () => {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 2 + Math.random() * 5;
-      return {
-        id:    ++idRef.current,
-        x, y,
-        vx:    Math.cos(angle) * speed,
-        vy:    Math.sin(angle) * speed - 3,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        size:  2 + Math.random() * 4,
-        life:  1,
-        rot:   Math.random() * 360,
-        rotV:  (Math.random() - 0.5) * 12,
-        shape: Math.random() > 0.5 ? 'rect' : 'circle',
-      };
-    });
-    setParticles(p => [...p, ...newP]);
+      const spd   = 2 + Math.random() * 5.5;
+      return { id: ++id.current, x, y, vx: Math.cos(angle)*spd, vy: Math.sin(angle)*spd - 2.5,
+        color: cols[Math.floor(Math.random()*cols.length)], size: 2.5 + Math.random()*3.5,
+        life: 1, rot: Math.random()*360, rotV: (Math.random()-0.5)*14,
+        shape: Math.random()>.45 ? 'rect' : 'circle' };
+    })]);
   }, []);
-
-  // Physics tick
   useEffect(() => {
     if (!particles.length) return;
-    const id = requestAnimationFrame(() => {
-      setParticles(prev =>
-        prev
-          .map(p => ({
-            ...p,
-            x:    p.x + p.vx,
-            y:    p.y + p.vy,
-            vy:   p.vy + 0.18,
-            vx:   p.vx * 0.97,
-            life: p.life - 0.022,
-            rot:  p.rot + p.rotV,
-          }))
-          .filter(p => p.life > 0)
-      );
-    });
-    return () => cancelAnimationFrame(id);
+    const raf = requestAnimationFrame(() => setParticles(p =>
+      p.map(q => ({ ...q, x:q.x+q.vx, y:q.y+q.vy, vy:q.vy+0.2, vx:q.vx*.97, life:q.life-.024, rot:q.rot+q.rotV }))
+       .filter(q => q.life > 0)
+    ));
+    return () => cancelAnimationFrame(raf);
   }, [particles]);
-
   return { particles, burst };
 }
 
-// ── Pack graphic ─────────────────────────────────────────────────────────────
-function PackGraphic({ clipTop = false, clipBottom = false, style = {} }) {
-  const clipPath = clipTop
-    ? `polygon(0 0, 100% 0, 100% ${TEAR_Y}px, 0 ${TEAR_Y}px)`
+function Particles({ particles }) {
+  return (
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:50, overflow:'hidden' }}>
+      {particles.map(p => (
+        <div key={p.id} style={{
+          position:'absolute', left:p.x, top:p.y,
+          width: p.shape==='circle' ? p.size : p.size*1.5,
+          height: p.shape==='circle' ? p.size : p.size*.6,
+          background: p.color, borderRadius: p.shape==='circle' ? '50%' : 2,
+          transform: `rotate(${p.rot}deg)`,
+          opacity: Math.min(p.life*2, 1), willChange:'transform',
+        }} />
+      ))}
+    </div>
+  );
+}
+
+// ── Pack visual ───────────────────────────────────────────────────────────────
+function PackBody({ boltsRemoved = 0, clipTop = false, clipBottom = false, style = {} }) {
+  const clip = clipTop
+    ? `polygon(0 0, ${PW}px 0, ${PW}px ${BOLT_Y + 18}px, 0 ${BOLT_Y + 18}px)`
     : clipBottom
-    ? `polygon(0 ${TEAR_Y}px, 100% ${TEAR_Y}px, 100% 100%, 0 100%)`
+    ? `polygon(0 ${BOLT_Y + 18}px, ${PW}px ${BOLT_Y + 18}px, ${PW}px ${PH}px, 0 ${PH}px)`
     : 'none';
 
   return (
-    <div style={{ width: PW, height: PH, position: 'absolute', inset: 0, clipPath, ...style }}>
+    <div style={{ width:PW, height:PH, position:'absolute', inset:0, clipPath:clip, ...style }}>
       <div style={{
-        width: PW, height: PH, borderRadius: 10, overflow: 'hidden',
-        background: 'linear-gradient(165deg, #101f38 0%, #06101c 50%, #0b1a2c 100%)',
-        border: '2px solid rgba(201,168,51,0.6)',
-        boxShadow: '0 0 40px rgba(201,168,51,0.2), 0 8px 48px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.07)',
-        position: 'relative',
+        width:PW, height:PH, borderRadius:10, overflow:'hidden',
+        background:'linear-gradient(165deg,#101f38 0%,#06101c 50%,#0b1a2c 100%)',
+        border:'2px solid rgba(201,168,51,0.65)',
+        boxShadow:'0 0 40px rgba(201,168,51,0.18), 0 8px 48px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)',
+        position:'relative',
       }}>
-        {/* Diagonal foil texture */}
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'repeating-linear-gradient(110deg, transparent, transparent 18px, rgba(201,168,51,0.035) 18px, rgba(201,168,51,0.035) 19px)',
-        }} />
-        {/* Vertical light streak (foil effect) */}
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'linear-gradient(110deg, transparent 25%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 55%, transparent 75%)',
-        }} />
+        {/* Foil diagonal texture */}
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+          background:'repeating-linear-gradient(110deg,transparent,transparent 18px,rgba(201,168,51,0.03) 18px,rgba(201,168,51,0.03) 19px)' }} />
+        {/* Specular sheen */}
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+          background:'linear-gradient(120deg,transparent 28%,rgba(255,255,255,0.04) 46%,rgba(255,255,255,0.09) 50%,rgba(255,255,255,0.04) 54%,transparent 72%)' }} />
 
-        {/* ── TOP FLAP ── */}
+        {/* TOP SEAL STRIP with bolts */}
         <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: TEAR_Y,
-          background: 'linear-gradient(135deg, #182a45 0%, #0d1e34 100%)',
-          borderBottom: '1px solid rgba(201,168,51,0.2)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+          position:'absolute', top:0, left:0, right:0, height: BOLT_Y + 18,
+          background:'linear-gradient(135deg,#182a45,#0d1e34)',
+          borderBottom:'2px solid rgba(201,168,51,0.45)',
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end',
+          paddingBottom:4,
         }}>
-          <div style={{ fontSize: 8.5, color: 'rgba(201,168,51,0.9)', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '.28em' }}>
+          {/* Brand name in seal */}
+          <div style={{ fontSize:7.5, color:'rgba(201,168,51,0.85)', fontFamily:'monospace', fontWeight:700, letterSpacing:'.3em', marginBottom:4 }}>
             RAIL GACHA
           </div>
-          <div style={{ fontSize: 6.5, color: 'rgba(201,168,51,0.4)', fontFamily: 'monospace', letterSpacing: '.18em' }}>
-            BOOSTER PACK
+          {/* Bolts row */}
+          <div style={{ position:'absolute', bottom:6, left:0, right:0, display:'flex', justifyContent:'space-around', paddingLeft:14, paddingRight:14 }}>
+            {BOLT_XS.map((x, i) => (
+              <div key={i} style={{
+                width:10, height:10, borderRadius:2,
+                background: i < boltsRemoved ? 'transparent' : 'rgba(201,168,51,0.75)',
+                border: i < boltsRemoved ? '1px dashed rgba(201,168,51,0.2)' : '1px solid rgba(201,168,51,0.5)',
+                boxShadow: i < boltsRemoved ? 'none' : 'inset 0 1px 0 rgba(255,255,255,0.3)',
+                transition:'all 0.2s',
+                display:'flex', alignItems:'center', justifyContent:'center',
+              }}>
+                {i >= boltsRemoved && (
+                  <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(100,80,30,0.8)' }} />
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Tear perforations */}
-        <div style={{
-          position: 'absolute', top: TEAR_Y - 1, left: 0, right: 0, height: 3,
-          background: 'repeating-linear-gradient(to right, transparent, transparent 5px, rgba(201,168,51,0.7) 5px, rgba(201,168,51,0.7) 9px)',
-          zIndex: 3,
-        }} />
-        {/* Right-side notch */}
-        <div style={{
-          position: 'absolute', top: TEAR_Y - 6, right: -1, zIndex: 4,
-          width: 0, height: 0,
-          borderTop: '6px solid transparent',
-          borderBottom: '6px solid transparent',
-          borderRight: '8px solid rgba(6,16,28,0.95)',
-        }} />
-        <div style={{
-          position: 'absolute', top: TEAR_Y - 10, right: 10, zIndex: 3,
-          fontSize: 6, color: 'rgba(201,168,51,0.5)', fontFamily: 'monospace', letterSpacing: '.1em',
-        }}>
-          TEAR HERE ✂
-        </div>
-
-        {/* ── MAIN ART AREA ── */}
-        <div style={{
-          position: 'absolute', top: TEAR_Y + 16, left: 14, right: 14, bottom: 46,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
-        }}>
-          {/* Glow ring behind icon */}
-          <div style={{
-            position: 'absolute',
-            width: 90, height: 90, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(201,168,51,0.15) 0%, transparent 70%)',
-          }} />
-          <div style={{
-            fontSize: 60, lineHeight: 1,
-            filter: 'drop-shadow(0 0 18px rgba(201,168,51,0.8))',
-            position: 'relative', zIndex: 1,
-          }}>
-            🚂
-          </div>
-          <div style={{
-            fontSize: 9.5, color: 'rgba(201,168,51,0.75)', fontFamily: 'monospace',
-            fontWeight: 700, letterSpacing: '.1em', textAlign: 'center',
-            position: 'relative', zIndex: 1,
-          }}>
+        {/* Main art area */}
+        <div style={{ position:'absolute', top:BOLT_Y+20, left:12, right:12, bottom:44,
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8 }}>
+          {/* Glow halo */}
+          <div style={{ position:'absolute', width:88, height:88, borderRadius:'50%', background:'radial-gradient(circle,rgba(201,168,51,0.18) 0%,transparent 70%)' }} />
+          {/* Clean locomotive silhouette in CSS (no emoji) */}
+          <svg width="80" height="42" viewBox="0 0 80 42" fill="none" style={{ position:'relative', zIndex:1, filter:'drop-shadow(0 0 12px rgba(201,168,51,0.7))' }}>
+            {/* Boiler/body */}
+            <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(201,168,51,0.85)" />
+            {/* Cab */}
+            <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(201,168,51,0.9)" />
+            {/* Cab window */}
+            <rect x="54" y="13" width="7" height="7" rx="1" fill="rgba(6,16,28,0.8)" />
+            {/* Smokebox */}
+            <rect x="4" y="17" width="12" height="12" rx="2" fill="rgba(160,130,40,0.9)" />
+            {/* Chimney */}
+            <rect x="12" y="8" width="5" height="10" rx="1" fill="rgba(201,168,51,0.8)" />
+            {/* Smoke puff */}
+            <circle cx="14" cy="5" r="3" fill="rgba(201,168,51,0.3)" />
+            <circle cx="18" cy="3" r="2" fill="rgba(201,168,51,0.2)" />
+            {/* Wheels */}
+            <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.9)" strokeWidth="2" />
+            <circle cx="20" cy="34" r="2" fill="rgba(201,168,51,0.7)" />
+            <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.9)" strokeWidth="2" />
+            <circle cx="40" cy="34" r="2" fill="rgba(201,168,51,0.7)" />
+            <circle cx="60" cy="35" r="5" fill="none" stroke="rgba(201,168,51,0.8)" strokeWidth="1.5" />
+            {/* Connecting rod */}
+            <line x1="20" y1="34" x2="40" y2="34" stroke="rgba(201,168,51,0.6)" strokeWidth="2" />
+            {/* Buffer */}
+            <rect x="0" y="22" width="6" height="6" rx="1" fill="rgba(201,168,51,0.6)" />
+          </svg>
+          <div style={{ fontSize:8.5, color:'rgba(201,168,51,0.7)', fontFamily:'monospace', fontWeight:700, letterSpacing:'.1em', position:'relative', zIndex:1 }}>
             TRAINS OF THE WORLD
           </div>
-          {/* Edition line */}
-          <div style={{
-            fontSize: 7, color: 'rgba(201,168,51,0.3)', fontFamily: 'monospace',
-            letterSpacing: '.14em',
-          }}>
+          <div style={{ fontSize:6.5, color:'rgba(201,168,51,0.3)', fontFamily:'monospace', letterSpacing:'.14em' }}>
             WIKIPEDIA EDITION
           </div>
         </div>
 
-        {/* ── BOTTOM STRIP ── */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: 44,
-          background: 'linear-gradient(to top, rgba(0,0,0,0.55), transparent)',
-          borderTop: '1px solid rgba(201,168,51,0.15)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-        }}>
-          <div style={{ fontSize: 8.5, color: 'rgba(201,168,51,0.7)', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '.12em' }}>
-            5 CARDS INSIDE
-          </div>
-          <div style={{ fontSize: 6.5, color: 'rgba(201,168,51,0.28)', fontFamily: 'monospace' }}>
-            INFO FROM WIKIPEDIA
-          </div>
+        {/* Bottom strip */}
+        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:42,
+          background:'linear-gradient(to top,rgba(0,0,0,0.55),transparent)',
+          borderTop:'1px solid rgba(201,168,51,0.15)',
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2 }}>
+          <div style={{ fontSize:8, color:'rgba(201,168,51,0.65)', fontFamily:'monospace', fontWeight:700, letterSpacing:'.12em' }}>5 CARDS INSIDE</div>
+          <div style={{ fontSize:6.5, color:'rgba(201,168,51,0.28)', fontFamily:'monospace' }}>INFO FROM WIKIPEDIA</div>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Particle renderer ─────────────────────────────────────────────────────────
-function Particles({ particles }) {
+// ── Spanner tool ─────────────────────────────────────────────────────────────
+function Spanner({ x, y, spinning }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50, overflow: 'hidden' }}>
-      {particles.map(p => (
-        <div key={p.id} style={{
-          position: 'absolute',
-          left: p.x, top: p.y,
-          width:  p.shape === 'circle' ? p.size : p.size * 1.4,
-          height: p.shape === 'circle' ? p.size : p.size * 0.7,
-          background: p.color,
-          borderRadius: p.shape === 'circle' ? '50%' : '1px',
-          transform: `rotate(${p.rot}deg)`,
-          opacity: Math.min(p.life * 2, 1),
-          willChange: 'transform',
-        }} />
-      ))}
+    <div style={{
+      position:'absolute',
+      left: x - 10, top: y - 10,
+      width:20, height:20,
+      display:'flex', alignItems:'center', justifyContent:'center',
+      fontSize:16,
+      animation: spinning ? 'boltSpin 0.35s linear 2' : 'none',
+      zIndex:10,
+      filter:'drop-shadow(0 0 4px rgba(201,168,51,0.8))',
+      transformOrigin:'center center',
+    }}>
+      🔧
     </div>
   );
 }
 
-// ── Card stack emerging from pack ─────────────────────────────────────────────
-function CardStack({ progress }) {
-  const maxRise = 200;
-  const rise = Math.min(progress, 1) * maxRise;
-  // Cards fan slightly then straighten as they come out
+// ── Crane ─────────────────────────────────────────────────────────────────────
+function Crane({ cableH, hookY, attached }) {
   return (
-    <div style={{
-      position: 'absolute',
-      bottom: 0, left: '50%',
-      transform: `translateX(-50%) translateY(${PH - TEAR_Y - rise}px)`,
-      width: PW - 20,
-      zIndex: 1,
-    }}>
-      {[4,3,2,1,0].map(i => (
-        <div key={i} style={{
-          position: 'absolute',
-          bottom: i * 2.5,
-          width: PW - 20,
-          height: 8,
-          background: i === 0 ? '#0d1f35' : `rgba(13,31,53,${0.8 - i*0.12})`,
-          border: `1px solid rgba(201,168,51,${0.45 - i*0.08})`,
-          borderRadius: 3,
-          transform: `rotate(${(i - 2) * 0.9}deg) translateX(${(i-2)*1.5}px)`,
-          transition: 'transform 0.1s',
-        }} />
-      ))}
+    <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', top:0, zIndex:6, pointerEvents:'none' }}>
+      {/* Cable */}
+      <div style={{ width:2, background:'rgba(201,168,51,0.7)', height:cableH, margin:'0 auto',
+        boxShadow:'0 0 3px rgba(201,168,51,0.4)' }} />
+      {/* Hook */}
       <div style={{
-        position: 'relative', zIndex: 5,
-        width: PW - 20, height: 50,
-        background: 'linear-gradient(165deg, #0d1f35, #060f1c)',
-        border: '1.5px solid rgba(201,168,51,0.5)',
-        borderRadius: 7,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 20,
-        boxShadow: '0 -4px 16px rgba(201,168,51,0.25)',
-      }}>
-        🚂
+        marginLeft:-8, marginTop:-1,
+        width:18, height:22,
+        border:'3px solid rgba(201,168,51,0.9)',
+        borderTop:'none',
+        borderRadius:'0 0 14px 14px',
+        boxShadow:'0 0 6px rgba(201,168,51,0.5)',
+        animation: attached ? 'hookSwing 0.6s ease-in-out infinite' : 'none',
+        transformOrigin:'top center',
+      }} />
+      {/* Hook tip */}
+      <div style={{ marginLeft:8, marginTop:-3, width:3, height:8,
+        background:'rgba(201,168,51,0.9)', borderRadius:'0 0 2px 2px' }} />
+    </div>
+  );
+}
+
+// ── Card stack emerging ───────────────────────────────────────────────────────
+function CardStack({ craneY, cardCount = 5 }) {
+  return (
+    <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', top:craneY + 28, zIndex:5, pointerEvents:'none' }}>
+      {/* Cable to cards */}
+      <div style={{ width:1, height:16, background:'rgba(201,168,51,0.5)', margin:'0 auto' }} />
+      {/* Fanned cards */}
+      <div style={{ position:'relative', width:PW-24, height:50 }}>
+        {Array.from({ length: Math.min(cardCount, 5) }).map((_, i) => (
+          <div key={i} style={{
+            position:'absolute', bottom:0, left:'50%',
+            transform:`translateX(-50%) rotate(${(i-2)*4}deg) translateY(${i*-3}px)`,
+            width:PW-24, height:48,
+            background:`rgba(13,31,53,${0.9-i*0.1})`,
+            border:`1.5px solid rgba(201,168,51,${0.55-i*0.08})`,
+            borderRadius:6,
+            boxShadow:'0 -2px 8px rgba(201,168,51,0.2)',
+          }} />
+        ))}
+        {/* Top card shows loco silhouette */}
+        <div style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)',
+          width:PW-24, height:48, background:'linear-gradient(165deg,#0d1f35,#060f1c)',
+          border:'1.5px solid rgba(201,168,51,0.6)', borderRadius:6, zIndex:5,
+          display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <svg width="36" height="20" viewBox="0 0 80 42" fill="none">
+            <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(201,168,51,0.7)" />
+            <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(201,168,51,0.75)" />
+            <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.8)" strokeWidth="2" />
+            <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.8)" strokeWidth="2" />
+          </svg>
+        </div>
       </div>
     </div>
   );
 }
 
-// ── Screen flash ──────────────────────────────────────────────────────────────
-function ScreenFlash({ visible }) {
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 49,
-      background: 'rgba(201,168,51,0.22)',
-      opacity: visible ? 1 : 0,
-      transition: 'opacity 0.15s',
-    }} />
-  );
-}
-
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Main component ────────────────────────────────────────────────────────────
 export default function PackAnimation({ onComplete }) {
-  const [phase,    setPhase]    = useState('idle');
-  const [topY,     setTopY]     = useState(0);
-  const [topRot,   setTopRot]   = useState(0);
-  const [topOp,    setTopOp]    = useState(1);
-  const [slideProgress, setSlide] = useState(0);
-  const [glowOp,   setGlowOp]   = useState(0);
-  const [flash,    setFlash]    = useState(false);
-  const { particles, burst }    = useParticles();
-  const rafRef = useRef(null);
-  const containerRef = useRef(null);
+  // phases: idle → unscrewing → crane_descend → lifting → card_hoist → done
+  const [phase,       setPhase]      = useState('idle');
+  const [boltsDone,   setBoltsDone]  = useState(0);
+  const [activeBolt,  setActiveBolt] = useState(-1);  // which bolt is being unscrewed
+  const [cableH,      setCableH]     = useState(0);   // crane cable length px
+  const [hookY,       setHookY]      = useState(0);
+  const [lidY,        setLidY]       = useState(0);
+  const [lidRot,      setLidRot]     = useState(0);
+  const [lidOp,       setLidOp]      = useState(1);
+  const [cardY,       setCardY]      = useState(0);   // crane hoist position for cards
+  const [glowOp,      setGlowOp]     = useState(0);
+  const [flash,       setFlash]      = useState(false);
+  const { particles, burst }         = useParticles();
+  const packRef  = useRef(null);
+  const rafRef   = useRef(null);
 
-  // Start shake after short delay
+  // Target cable length to reach bolt row
+  const TARGET_CABLE = 160;
+
   useEffect(() => {
-    const t = setTimeout(() => setPhase('shaking'), 180);
+    // Small delay before bobbing starts
+    const t = setTimeout(() => setPhase('ready'), 300);
     return () => clearTimeout(t);
   }, []);
 
-  // Shake sound
-  useEffect(() => {
-    if (phase !== 'shaking') return;
-    soundPackShake();
-    const t = setInterval(() => soundPackShake(), 540);
-    return () => clearInterval(t);
-  }, [phase]);
-
+  // Unscrew sequence when user taps
   const handleTap = () => {
-    if (phase === 'tearing' || phase === 'sliding' || phase === 'done') return;
-    setPhase('tearing');
-    soundTear();
-
-    // Flash
-    setFlash(true);
-    setTimeout(() => setFlash(false), 180);
-
-    // Burst particles from tear point
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (rect) {
-      const tearScreenY = rect.top + TEAR_Y;
-      burst(rect.left + PW / 2, tearScreenY, 35);
-    }
-
-    const start = performance.now();
-    const TEAR_DUR = 340;
-
-    const animTear = (now) => {
-      const t    = Math.min((now - start) / TEAR_DUR, 1);
-      const ease = 1 - Math.pow(1 - t, 2.8);
-      setTopY(-200 * ease);
-      setTopRot(-18 * ease);
-      setTopOp(Math.max(0, 1 - ease * 1.4));
-      setGlowOp(t);
-      if (t < 0.5) {
-        // Secondary particle burst as flap reaches apex
-        const rect2 = containerRef.current?.getBoundingClientRect();
-        if (rect2 && t > 0.45) burst(rect2.left + PW / 2, rect2.top - 40, 12);
-      }
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(animTear);
-      } else {
-        setPhase('sliding');
-        startSlide(performance.now());
-      }
-    };
-    rafRef.current = requestAnimationFrame(animTear);
+    if (phase !== 'ready' && phase !== 'idle') return;
+    setPhase('unscrewing');
+    unscrewNext(0);
   };
 
-  const startSlide = (start) => {
-    const SLIDE_DUR = 800;
-    let   lastSound = -1;
+  const unscrewNext = (boltIdx) => {
+    if (boltIdx >= BOLT_XS.length) {
+      // All bolts done — bring in the crane
+      setTimeout(() => startCrane(), 200);
+      return;
+    }
+    setActiveBolt(boltIdx);
+    soundBolt();
+    // Particles at bolt position
+    const rect = packRef.current?.getBoundingClientRect();
+    if (rect) {
+      const bx = rect.left + BOLT_XS[boltIdx];
+      const by = rect.top  + BOLT_Y + 10;
+      burst(bx, by, 8);
+    }
+    setTimeout(() => {
+      setBoltsDone(boltIdx + 1);
+      setActiveBolt(-1);
+      setTimeout(() => unscrewNext(boltIdx + 1), 120);
+    }, 420);
+  };
+
+  const startCrane = () => {
+    setPhase('crane_descend');
+    soundCrane();
+    const start = performance.now();
+    const DESCEND_DUR = 900;
     const tick = (now) => {
-      const t    = Math.min((now - start) / SLIDE_DUR, 1);
-      const ease = 1 - Math.pow(1 - t, 2.2);
-      setSlide(ease);
-      const step = Math.floor(t * 5);
-      if (step !== lastSound && step <= 4) {
-        lastSound = step;
-        setTimeout(() => soundCardSlide(), step * 40);
+      const t    = Math.min((now - start) / DESCEND_DUR, 1);
+      const ease = 1 - Math.pow(1 - t, 2.5);
+      setCableH(TARGET_CABLE * ease);
+      setHookY(TARGET_CABLE * ease);
+      if (t < 1) { rafRef.current = requestAnimationFrame(tick); }
+      else {
+        soundHookAttach();
+        setTimeout(() => startLift(), 350);
       }
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const startLift = () => {
+    setPhase('lifting');
+    setFlash(true);
+    setTimeout(() => setFlash(false), 160);
+    const rect = packRef.current?.getBoundingClientRect();
+    if (rect) burst(rect.left + PW/2, rect.top + BOLT_Y + 18, 32);
+    setGlowOp(1);
+
+    const start = performance.now();
+    const LIFT_DUR = 550;
+    const tick = (now) => {
+      const t    = Math.min((now - start) / LIFT_DUR, 1);
+      const ease = 1 - Math.pow(1 - t, 2.8);
+      // Lid flies off, crane cable shortens a bit then extends for cards
+      setLidY(-220 * ease);
+      setLidRot(-16 * ease);
+      setLidOp(1 - ease);
+      setCableH(TARGET_CABLE - 30 * ease);
+      if (t < 1) { rafRef.current = requestAnimationFrame(tick); }
+      else {
+        setPhase('card_hoist');
+        setTimeout(() => hoistCards(), 200);
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const hoistCards = () => {
+    const start = performance.now();
+    const HOIST_DUR = 800;
+    let lastSound = -1;
+    const tick = (now) => {
+      const t    = Math.min((now - start) / HOIST_DUR, 1);
+      const ease = 1 - Math.pow(1 - t, 2.2);
+      // Crane rises up pulling cards
+      const newCableH = TARGET_CABLE + 60 * ease;
+      setCableH(newCableH);
+      setCardY(newCableH);
+      const step = Math.floor(t * 5);
+      if (step !== lastSound) { lastSound = step; setTimeout(() => soundCardSlide(), step * 40); }
+      if (t < 1) { rafRef.current = requestAnimationFrame(tick); }
+      else {
         setPhase('done');
-        setTimeout(() => onComplete?.(), 320);
+        setTimeout(() => onComplete?.(), 300);
       }
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -339,106 +363,93 @@ export default function PackAnimation({ onComplete }) {
 
   useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
 
-  const showFull    = phase === 'idle' || phase === 'shaking';
-  const showTearing = phase === 'tearing' || phase === 'sliding' || phase === 'done';
+  const showFull    = phase === 'idle' || phase === 'ready' || phase === 'unscrewing';
+  const showCrane   = phase === 'crane_descend' || phase === 'lifting' || phase === 'card_hoist' || phase === 'done';
+  const showLid     = phase === 'lifting';
+  const showCards   = phase === 'card_hoist' || phase === 'done';
+  const showBottom  = phase === 'lifting' || phase === 'card_hoist' || phase === 'done';
 
   return (
     <>
       <Particles particles={particles} />
-      <ScreenFlash visible={flash} />
+      {flash && <div style={{ position:'fixed', inset:0, background:'rgba(201,168,51,0.2)', pointerEvents:'none', zIndex:49 }} />}
 
       <div
         onClick={handleTap}
         style={{
-          minHeight: 'calc(100vh - 100px)',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          gap: 22, padding: '20px 16px',
-          cursor: showFull ? 'pointer' : 'default',
-          userSelect: 'none',
+          minHeight:'calc(100vh - 100px)',
+          display:'flex', flexDirection:'column',
+          alignItems:'center', justifyContent:'center',
+          gap:20, padding:'20px 16px',
+          cursor: phase==='ready' || phase==='idle' ? 'pointer' : 'default',
+          userSelect:'none',
         }}
       >
-        {/* Prompt */}
+        {/* Hint text */}
         <p style={{
-          fontSize: 10, color: 'rgba(201,168,51,0.55)', fontFamily: 'monospace',
-          letterSpacing: '.2em', margin: 0,
-          opacity: showFull ? 1 : 0, transition: 'opacity 0.3s',
-          animation: phase === 'shaking' ? 'pulse 1.5s ease-in-out infinite' : 'none',
+          fontSize:10, color:'rgba(201,168,51,0.55)', fontFamily:'monospace',
+          letterSpacing:'.2em', margin:0,
+          opacity: showFull ? 1 : 0, transition:'opacity 0.3s',
+          animation: phase==='ready' ? 'pulse 1.8s ease-in-out infinite' : 'none',
         }}>
-          {phase === 'idle' ? 'FETCHING CARDS…' : 'TAP TO OPEN PACK'}
+          {phase==='idle' ? 'FETCHING CARDS…' : phase==='unscrewing' ? 'REMOVING BOLTS…' : 'TAP TO OPEN PACK'}
         </p>
 
-        {/* Pack + glow halo */}
-        <div
-          ref={containerRef}
-          style={{
-            position: 'relative',
-            width: PW, height: PH + 80,
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-          }}
-        >
+        {/* Pack container — 260px tall to give crane room above */}
+        <div style={{ position:'relative', width:PW, height:PH + 120, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           {/* Background glow */}
-          <div style={{
-            position: 'absolute', inset: -60, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(201,168,51,0.3) 0%, transparent 65%)',
-            opacity: glowOp, pointerEvents: 'none',
-            transition: 'opacity 0.08s',
-            filter: 'blur(2px)',
-          }} />
+          <div style={{ position:'absolute', inset:-60, borderRadius:'50%',
+            background:'radial-gradient(circle,rgba(201,168,51,0.28) 0%,transparent 65%)',
+            opacity:glowOp, pointerEvents:'none', transition:'opacity 0.1s', filter:'blur(4px)' }} />
 
-          {/* Card stack peeking out */}
-          {(phase === 'sliding' || phase === 'done') && (
-            <CardStack progress={slideProgress} />
-          )}
+          {/* Crane */}
+          {showCrane && <Crane cableH={cableH} hookY={hookY} attached={phase==='card_hoist' || phase==='done'} />}
+
+          {/* Cards being hoisted */}
+          {showCards && <CardStack craneY={cardY} />}
 
           {/* Pack body */}
-          <div style={{
-            position: 'absolute', bottom: 0, left: '50%',
-            transform: `translateX(-50%)`,
-            width: PW, height: PH,
-          }}>
+          <div ref={packRef} style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', width:PW, height:PH }}>
+            {/* Full pack (pre-crane) */}
             {showFull && (
-              <div
-                className={phase === 'shaking' ? 'pack-shake' : ''}
-                style={{ position: 'relative', width: PW, height: PH }}
-              >
-                <PackGraphic />
+              <div style={{ position:'relative', width:PW, height:PH, animation: phase==='ready' ? 'packBob 2.2s ease-in-out infinite' : 'none' }}>
+                <PackBody boltsRemoved={boltsDone} />
+                {/* Active spanner */}
+                {activeBolt >= 0 && (
+                  <Spanner x={BOLT_XS[activeBolt]} y={BOLT_Y + 10} spinning />
+                )}
               </div>
             )}
-            {showTearing && (
+
+            {/* Split view during/after crane */}
+            {showCrane && !showFull && (
               <>
-                {/* Torn top piece */}
-                <div style={{
-                  position: 'absolute', inset: 0, zIndex: 3,
-                  transform: `translateY(${topY}px) rotate(${topRot}deg)`,
-                  opacity: topOp,
-                  transformOrigin: '50% 0%',
-                  transition: 'none',
-                }}>
-                  <PackGraphic clipTop />
-                </div>
-                {/* Bottom stays */}
-                <div style={{ position: 'absolute', inset: 0, zIndex: 2 }}>
-                  <PackGraphic clipBottom />
-                </div>
+                {/* Lid flying off */}
+                {showLid && (
+                  <div style={{ position:'absolute', inset:0, zIndex:3,
+                    transform:`translateY(${lidY}px) rotate(${lidRot}deg)`,
+                    opacity:lidOp, transformOrigin:'50% 0%' }}>
+                    <PackBody boltsRemoved={4} clipTop />
+                  </div>
+                )}
+                {/* Bottom half stays */}
+                {showBottom && (
+                  <div style={{ position:'absolute', inset:0, zIndex:2 }}>
+                    <PackBody boltsRemoved={4} clipBottom />
+                  </div>
+                )}
               </>
             )}
           </div>
         </div>
 
         {/* Loading dots */}
-        {showFull && (
-          <div style={{ display: 'flex', gap: 5, alignItems: 'center', opacity: 0.6 }}>
+        {(phase === 'idle' || phase === 'ready') && (
+          <div style={{ display:'flex', gap:5, alignItems:'center', opacity:0.5 }}>
             {[0,1,2].map(i => (
-              <div key={i} style={{
-                width: 5, height: 5, borderRadius: '50%',
-                background: 'rgba(201,168,51,0.5)',
-                animation: `pulse 1.2s ease-in-out ${i*0.2}s infinite`,
-              }} />
+              <div key={i} style={{ width:5, height:5, borderRadius:'50%', background:'rgba(201,168,51,0.5)', animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite` }} />
             ))}
-            <span style={{ fontSize: 8.5, color: 'rgba(201,168,51,0.4)', fontFamily: 'monospace', marginLeft: 4 }}>
-              fetching from wikipedia…
-            </span>
+            <span style={{ fontSize:8.5, color:'rgba(201,168,51,0.4)', fontFamily:'monospace', marginLeft:4 }}>fetching from wikipedia…</span>
           </div>
         )}
       </div>

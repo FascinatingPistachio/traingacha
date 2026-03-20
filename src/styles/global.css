@@ -1,157 +1,65 @@
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; background: #06101c; color: #e8e0d0; font-family: Georgia,'Times New Roman',serif; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+
+@keyframes shimmer    { 0%{background-position:200% center}100%{background-position:-200% center} }
+@keyframes flipIn     { 0%{transform:perspective(700px) rotateY(90deg) scale(0.88);opacity:0}65%{transform:perspective(700px) rotateY(-5deg) scale(1.02)}100%{transform:perspective(700px) rotateY(0deg) scale(1);opacity:1} }
+@keyframes fadeUp     { from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1} }
+@keyframes pulse      { 0%,100%{opacity:1}50%{opacity:.48} }
+@keyframes goldPulse  { 0%,100%{box-shadow:0 0 22px rgba(232,192,64,.45)}50%{box-shadow:0 0 55px rgba(232,192,64,.82)} }
+@keyframes epicGlow   { 0%,100%{box-shadow:0 0 18px rgba(181,123,238,.4)}50%{box-shadow:0 0 44px rgba(181,123,238,.72)} }
+@keyframes spin       { to{transform:rotate(360deg)} }
+@keyframes cardFanIn  { 0%{transform:translateY(60px) scale(0.85);opacity:0}60%{transform:translateY(-8px) scale(1.03)}100%{transform:translateY(0) scale(1);opacity:1} }
+@keyframes glowBurst  { 0%{opacity:0;transform:scale(0.6)}40%{opacity:1}100%{opacity:0;transform:scale(2.2)} }
+@keyframes packBob    { 0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)} }
+
+/* MYTHIC rainbow pulse */
+@keyframes mythicPulse {
+  0%  { box-shadow: 0 0 28px rgba(160,180,255,0.6), 0 0 0 1px rgba(180,200,255,0.4); }
+  25% { box-shadow: 0 0 28px rgba(255,160,220,0.6), 0 0 0 1px rgba(255,180,230,0.4); }
+  50% { box-shadow: 0 0 28px rgba(180,255,210,0.6), 0 0 0 1px rgba(200,255,220,0.4); }
+  75% { box-shadow: 0 0 28px rgba(255,220,150,0.6), 0 0 0 1px rgba(255,230,170,0.4); }
+  100%{ box-shadow: 0 0 28px rgba(160,180,255,0.6), 0 0 0 1px rgba(180,200,255,0.4); }
 }
-
-html, body, #root {
-  height: 100%;
-  background: #06101c;
-  color: #e8e0d0;
-  font-family: Georgia, 'Times New Roman', serif;
-  -webkit-font-smoothing: antialiased;
-  overscroll-behavior: none;
+@keyframes mythicShimmer {
+  0%  { background-position: 0%   50%; }
+  50% { background-position: 100% 50%; }
+  100%{ background-position: 0%   50%; }
 }
+/* Crane cable drop */
+@keyframes cableDown  { from{height:0;opacity:0}to{height:var(--cable-h);opacity:1} }
+@keyframes boltSpin   { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
+@keyframes hookSwing  { 0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)} }
+@keyframes lidLift    { from{transform:translateY(0) rotate(0deg);opacity:1}to{transform:translateY(-280px) rotate(-12deg);opacity:0} }
 
-/* ── Animations ── */
-@keyframes shimmer {
-  0%   { background-position: 200% center; }
-  100% { background-position: -200% center; }
-}
+.tc      { position:relative; border-radius:12px; overflow:hidden; flex-shrink:0; transition:transform .22s ease,box-shadow .22s ease; }
+.tc.clickable { cursor:pointer; }
+.tc.clickable:hover { transform:translateY(-7px) scale(1.05) rotate(-0.5deg); }
+.tc.revealed  { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1); }
+.tc.r-L { animation:goldPulse 2.5s ease-in-out infinite; }
+.tc.r-E { animation:epicGlow  2.8s ease-in-out infinite; }
+.tc.r-M { animation:mythicPulse 3s ease-in-out infinite; }
+.tc.r-L.revealed { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1), goldPulse 2.5s ease-in-out 0.5s infinite; }
+.tc.r-E.revealed { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1), epicGlow  2.8s ease-in-out 0.5s infinite; }
+.tc.r-M.revealed { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1), mythicPulse 3s ease-in-out 0.5s infinite; }
 
-@keyframes flipIn {
-  0%   { transform: perspective(700px) rotateY(90deg) scale(0.88); opacity: 0; }
-  65%  { transform: perspective(700px) rotateY(-5deg) scale(1.02); }
-  100% { transform: perspective(700px) rotateY(0deg)  scale(1);    opacity: 1; }
-}
+.tc-foil  { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:4; mix-blend-mode:overlay; }
+.tc-foil-L,.tc-foil-E { background-size:300% 300%; animation:shimmer 4s linear infinite; }
+.tc-foil-L { background:linear-gradient(135deg,rgba(255,215,0,0) 0%,rgba(255,215,0,.18) 20%,rgba(255,255,255,.22) 40%,rgba(255,165,0,.18) 60%,rgba(255,215,0,0) 100%); }
+.tc-foil-E { background:linear-gradient(135deg,rgba(180,100,255,0) 0%,rgba(180,100,255,.18) 25%,rgba(255,255,255,.2) 50%,rgba(100,150,255,.18) 75%,rgba(180,100,255,0) 100%); }
+.tc-foil-M { background:linear-gradient(270deg,#ff8080,#ffff80,#80ff80,#80ffff,#8080ff,#ff80ff,#ff8080); background-size:400% 400%; animation:mythicShimmer 3s ease infinite; opacity:.22; }
 
-@keyframes fadeUp {
-  from { transform: translateY(14px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
+.tc-back { position:relative; border-radius:12px; overflow:hidden; flex-shrink:0; transition:transform .22s ease; border:2.5px solid rgba(201,168,51,.35); background:linear-gradient(160deg,#0d1f35,#060f1c); }
+.tc-back.tappable:hover { transform:translateY(-10px) scale(1.08) rotate(.5deg); cursor:pointer; }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.48; }
-}
-
-@keyframes goldPulse {
-  0%, 100% { box-shadow: 0 0 22px rgba(232,192,64,0.45); }
-  50%       { box-shadow: 0 0 55px rgba(232,192,64,0.82); }
-}
-
-@keyframes epicGlow {
-  0%, 100% { box-shadow: 0 0 18px rgba(181,123,238,0.4); }
-  50%       { box-shadow: 0 0 44px rgba(181,123,238,0.72); }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes trainSlide {
-  from { transform: translateX(-60px); opacity: 0; }
-  to   { transform: translateX(0);     opacity: 1; }
-}
-
-/* ── Rail card base ── */
-.rail-card {
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
-  cursor: default;
-}
-
-.rail-card.clickable:hover {
-  transform: translateY(-6px) scale(1.04) !important;
-  cursor: pointer;
-}
-
-.rail-card.revealed {
-  animation: flipIn 0.44s ease-out;
-}
-
-.rail-card.legendary {
-  animation: goldPulse 2.5s ease-in-out infinite;
-}
-
-.rail-card.legendary.revealed {
-  animation: flipIn 0.44s ease-out, goldPulse 2.5s ease-in-out 0.44s infinite;
-}
-
-.rail-card.epic {
-  animation: epicGlow 2.8s ease-in-out infinite;
-}
-
-.rail-card.epic.revealed {
-  animation: flipIn 0.44s ease-out, epicGlow 2.8s ease-in-out 0.44s infinite;
-}
-
-/* ── Shimmer overlay on epic/legendary ── */
-.shimmer-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  border-radius: inherit;
-  background-size: 300% 100%;
-  animation: shimmer 3.5s linear infinite;
-}
-
-/* ── Card back ── */
-.card-back {
-  transition: transform 0.22s ease;
-}
-
-.card-back.tappable:hover {
-  transform: translateY(-9px) scale(1.07) !important;
-  cursor: pointer;
-}
-
-/* ── Spinner ── */
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255,255,255,0.12);
-  border-top-color: rgba(255,255,255,0.55);
-  border-radius: 50%;
-  animation: spin 0.75s linear infinite;
-}
-
-/* ── Nav button ── */
-.nav-btn {
-  flex: 1;
-  background: none;
-  border: none;
-  border-top: 2px solid transparent;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  cursor: pointer;
-  color: #1a3050;
-  padding: 0;
-  transition: color 0.15s;
-}
-
-.nav-btn:hover  { background: rgba(201,168,51,0.09) !important; }
-.nav-btn.active { color: #c9a833 !important; border-top-color: #c9a833 !important; }
-
-/* ── Generic button ── */
-.btn {
-  transition: filter 0.15s, transform 0.1s;
-}
-.btn:hover  { filter: brightness(1.12); }
-.btn:active { transform: scale(0.97); }
-
-/* ── Scrollable areas ── */
-.scroll-area {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.scroll-area::-webkit-scrollbar        { width: 4px; }
-.scroll-area::-webkit-scrollbar-track  { background: transparent; }
-.scroll-area::-webkit-scrollbar-thumb  { background: rgba(201,168,51,0.2); border-radius: 2px; }
-
-/* ── Fade-in utility ── */
-.fade-up { animation: fadeUp 0.4s ease-out both; }
+.spinner { width:20px; height:20px; border:2px solid rgba(255,255,255,.12); border-top-color:rgba(255,255,255,.55); border-radius:50%; animation:spin .75s linear infinite; }
+.nav-btn { flex:1; background:none; border:none; border-top:2px solid transparent; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; color:#1a3050; padding:0; transition:color .15s; }
+.nav-btn:hover  { background:rgba(201,168,51,.09)!important; }
+.nav-btn.active { color:#c9a833!important; border-top-color:#c9a833!important; }
+.btn { transition:filter .15s,transform .1s; }
+.btn:hover  { filter:brightness(1.12); }
+.btn:active { transform:scale(.97); }
+.fade-up { animation:fadeUp .4s ease-out both; }
+.scroll-area { overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.scroll-area::-webkit-scrollbar { width:4px; }
+.scroll-area::-webkit-scrollbar-track { background:transparent; }
+.scroll-area::-webkit-scrollbar-thumb { background:rgba(201,168,51,.2); border-radius:2px; }

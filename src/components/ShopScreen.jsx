@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RARITY, PACK_COST, TIMER_TICKETS, TIMER_MAX_CHARGES, TIMER_INTERVAL_MS, AD_TICKETS, AD_COOLDOWN_MS, VIEW_THRESHOLDS } from '../constants.js';
+import { RARITY, PACK_COST, VIEW_THRESHOLDS, TIMER_TICKETS, TIMER_MAX_CHARGES, TIMER_INTERVAL_MS, AD_TICKETS, AD_COOLDOWN_MS, VIEW_THRESHOLDS } from '../constants.js';
 import { msUntilNextCharge, fmtMs, adOnCooldown, msUntilAdReady } from '../utils/tickets.js';
 import AdScreen from './AdScreen.jsx';
 
@@ -159,10 +159,15 @@ export default function ShopScreen({ save, onPack, onClaimCharges, onWatchAd }) 
         <p style={{ fontSize: 8, color: '#1e3050', fontFamily: 'monospace', margin: '0 0 10px', lineHeight: 1.75 }}>
           Rarity is determined by monthly Wikipedia page views — the more famous the train, the rarer the card.
         </p>
-        {['L', 'E', 'R', 'C'].map((r) => {
+        {['M', 'L', 'E', 'R', 'C'].map((r) => {
           const rs = RARITY[r];
           const labels = {
-            L: `≥ ${(VIEW_THRESHOLDS.L/1000).toFixed(0)}k views/month`,
+            M: `< ${VIEW_THRESHOLDS.MYTHIC_MAX} views/month`,
+            L: `≥ \${(VIEW_THRESHOLDS.L/1000).toFixed(0)}k views/month`,
+            E: `\${(VIEW_THRESHOLDS.E/1000).toFixed(0)}k – \${(VIEW_THRESHOLDS.L/1000).toFixed(0)}k/month`,
+            R: `\${(VIEW_THRESHOLDS.R/1000).toFixed(0)}k – \${(VIEW_THRESHOLDS.E/1000).toFixed(0)}k/month`,
+            C: `\${VIEW_THRESHOLDS.R/1000}k – \${VIEW_THRESHOLDS.MYTHIC_MAX}/month`,
+          }k views/month`,
             E: `${(VIEW_THRESHOLDS.E/1000).toFixed(0)}k – ${(VIEW_THRESHOLDS.L/1000).toFixed(0)}k/month`,
             R: `${(VIEW_THRESHOLDS.R/1000).toFixed(0)}k – ${(VIEW_THRESHOLDS.E/1000).toFixed(0)}k/month`,
             C: `< ${(VIEW_THRESHOLDS.R/1000).toFixed(0)}k/month`,
@@ -178,3 +183,4 @@ export default function ShopScreen({ save, onPack, onClaimCharges, onWatchAd }) 
     </div>
   );
 }
+// Note: ShopScreen imported MYTHIC via RARITY constant update — no changes needed
