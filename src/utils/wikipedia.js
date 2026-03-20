@@ -1,10 +1,6 @@
 import { VIEW_THRESHOLDS } from '../constants.js';
+import { getCharacterForTrain, applyCharacterRarityBoost } from './characters.js';
 
-// ---------------------------------------------------------------------------
-// Category pools
-// Organised by expected fame level so the pity system can bias pulls toward
-// famous categories when the player has gone a long time without a high rarity.
-// ---------------------------------------------------------------------------
 export const CATEGORIES = {
   famous: [
     'Named_passenger_trains_of_the_United_States',
@@ -56,42 +52,28 @@ export const ALL_CATEGORIES = [
   ...CATEGORIES.general,
 ];
 
-// Category pools used by the pity system
 export const PITY_POOL = {
   high: CATEGORIES.famous,
-  mid: [...CATEGORIES.famous, ...CATEGORIES.famous, ...CATEGORIES.notable],
-  low: ALL_CATEGORIES,
+  mid:  [...CATEGORIES.famous, ...CATEGORIES.famous, ...CATEGORIES.notable],
+  low:  ALL_CATEGORIES,
 };
 
-// ---------------------------------------------------------------------------
-// In-memory caches (survive page interactions, reset on hard reload)
-// ---------------------------------------------------------------------------
 const categoryMembersCache = new Map();
-const articleCache = new Map();
-const viewsCache = new Map();
+const articleCache          = new Map();
+const viewsCache            = new Map();
+const sessionSeen           = new Set();
 
-// Tracks titles used this session so we minimise duplicates in one play session
-const sessionSeen = new Set();
-
-// ---------------------------------------------------------------------------
-// Wikipedia Category Members API
-// ---------------------------------------------------------------------------
 export async function getCategoryMembers(category) {
   if (categoryMembersCache.has(category)) return categoryMembersCache.get(category);
-
   try {
     const params = new URLSearchParams({
-      action: 'query',
-      list: 'categorymembers',
-      cmtitle: `Category:${category}`,
-      cmlimit: '100',
-      cmtype: 'page',
-      format: 'json',
-      origin: '*',
+      action: 'query', list: 'categorymembers',
+      cmtitle: `Category:${category}`, cmlimit: '100',
+      cmtype: 'page', format: 'json', origin: '*',
     });
-    const res = await fetch(`https://en.wikipedia.org/w/api.php?${params}`);
-    if (!res.ok) throw new Error('category fetch failed');
-    const data = await res.json();
+    const res  = await fetch(`https://en.wikipedia.org/w/api.php?${params}`);
+    if (!res.ok) throw new Error();
+    const data    = await res.json();
     const members = (data.query?.categorymembers ?? []).map((m) => m.title);
     categoryMembersCache.set(category, members);
     return members;
@@ -101,32 +83,20 @@ export async function getCategoryMembers(category) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Wikimedia Pageviews API  →  rarity
-// Uses a 3-month average for a stable signal.
-// ---------------------------------------------------------------------------
 export async function getMonthlyPageViews(title) {
   if (viewsCache.has(title)) return viewsCache.get(title);
-
   try {
-    const encoded = encodeURIComponent(title.replace(/ /g, '_'));
-
-    // Build date range: 3 months ago → now
-    const now = new Date();
+    const encoded        = encodeURIComponent(title.replace(/ /g, '_'));
+    const now            = new Date();
     const threeMonthsAgo = new Date(now);
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-    const fmt = (d) =>
-      `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}01`;
-
+    const fmt = (d) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}01`;
     const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia.org/all-access/all-agents/${encoded}/monthly/${fmt(threeMonthsAgo)}/${fmt(now)}`;
     const res = await fetch(url);
-    if (!res.ok) {
-      viewsCache.set(title, 0);
-      return 0;
-    }
-    const data = await res.json();
+    if (!res.ok) { viewsCache.set(title, 0); return 0; }
+    const data  = await res.json();
     const items = data.items ?? [];
-    const avg = items.length
+    const avg   = items.length
       ? Math.round(items.reduce((s, i) => s + i.views, 0) / items.length)
       : 0;
     viewsCache.set(title, avg);
@@ -137,9 +107,6 @@ export async function getMonthlyPageViews(title) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Rarity from pageviews
-// ---------------------------------------------------------------------------
 export function rarityFromViews(views) {
   if (views >= VIEW_THRESHOLDS.L) return 'L';
   if (views >= VIEW_THRESHOLDS.E) return 'E';
@@ -147,27 +114,17 @@ export function rarityFromViews(views) {
   return 'C';
 }
 
-// ---------------------------------------------------------------------------
-// Wikipedia REST summary API
-// Returns null if the article has no image (cards without images are skipped).
-// ---------------------------------------------------------------------------
 export async function fetchArticleSummary(title) {
   if (articleCache.has(title)) return articleCache.get(title);
-
   try {
     const encoded = encodeURIComponent(title.replace(/ /g, '_'));
-    const res = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`
-    );
+    const res     = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`);
     if (!res.ok) return null;
     const d = await res.json();
-
-    // Hard rule: no image → card does not exist
     if (!d.thumbnail?.source) return null;
 
-    // Build a clean 2-sentence extract
     const extract = (d.extract ?? '')
-      .replace(/\([^)]*\)/g, '')           // strip parentheticals
+      .replace(/\([^)]*\)/g, '')
       .split(/\.(?:\s+|$)/)
       .map((s) => s.trim())
       .filter(Boolean)
@@ -176,15 +133,12 @@ export async function fetchArticleSummary(title) {
       .trim();
 
     const result = {
-      id: title.toLowerCase().replace(/\W+/g, '_'),
-      title: d.title,
-      extract: extract ? extract + '.' : '',
-      // Request a 400px wide thumbnail for cards; larger detail view uses 800px
-      image: d.thumbnail.source.replace(/\/\d+px-/, '/400px-'),
-      imageHD: d.thumbnail.source.replace(/\/\d+px-/, '/800px-'),
-      url:
-        d.content_urls?.desktop?.page ??
-        `https://en.wikipedia.org/wiki/${encoded}`,
+      id:       title.toLowerCase().replace(/\W+/g, '_'),
+      title:    d.title,
+      extract:  extract ? extract + '.' : '',
+      image:    d.thumbnail.source.replace(/\/\d+px-/, '/400px-'),
+      imageHD:  d.thumbnail.source.replace(/\/\d+px-/, '/800px-'),
+      url:      d.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encoded}`,
     };
 
     articleCache.set(title, result);
@@ -194,32 +148,28 @@ export async function fetchArticleSummary(title) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Main entry point used by the gacha system.
-// Picks a random article from the supplied category pool, fetches its image
-// and extract, then determines rarity from pageviews.
-// Retries on failures and skips articles with no image.
-// ---------------------------------------------------------------------------
 export async function fetchTrainCard(categoryPool, maxAttempts = 14) {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const category = categoryPool[Math.floor(Math.random() * categoryPool.length)];
-    const members = await getCategoryMembers(category);
+    const members  = await getCategoryMembers(category);
     if (!members.length) continue;
 
-    // Prefer titles not yet seen this session
     const unseen = members.filter((t) => !sessionSeen.has(t));
-    const pool = unseen.length > 0 ? unseen : members;
-    const title = pool[Math.floor(Math.random() * pool.length)];
+    const pool   = unseen.length > 0 ? unseen : members;
+    const title  = pool[Math.floor(Math.random() * pool.length)];
 
     const article = await fetchArticleSummary(title);
-    if (!article) continue; // no image → skip
+    if (!article) continue;
 
-    const views = await getMonthlyPageViews(title);
-    const rarity = rarityFromViews(views);
+    const views     = await getMonthlyPageViews(title);
+    let   rarity    = rarityFromViews(views);
+    const character = getCharacterForTrain(title);
+
+    // Boost rarity if this train is a famous fictional character's inspiration
+    if (character) rarity = applyCharacterRarityBoost(rarity, character);
 
     sessionSeen.add(title);
-    return { ...article, rarity, views };
+    return { ...article, rarity, views, character: character ?? null };
   }
-
-  return null; // could not fetch a valid card after maxAttempts
+  return null;
 }
