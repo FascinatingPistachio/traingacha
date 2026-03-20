@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RARITY, PACK_COST, VIEW_THRESHOLDS, TIMER_TICKETS, TIMER_MAX_CHARGES, TIMER_INTERVAL_MS, AD_TICKETS, AD_COOLDOWN_MS, VIEW_THRESHOLDS } from '../constants.js';
+import { RARITY, PACK_COST, VIEW_THRESHOLDS, TIMER_TICKETS, TIMER_MAX_CHARGES, TIMER_INTERVAL_MS, AD_TICKETS, AD_COOLDOWN_MS } from '../constants.js';
 import { msUntilNextCharge, fmtMs, adOnCooldown, msUntilAdReady } from '../utils/tickets.js';
 import AdScreen from './AdScreen.jsx';
 
@@ -163,14 +163,10 @@ export default function ShopScreen({ save, onPack, onClaimCharges, onWatchAd }) 
           const rs = RARITY[r];
           const labels = {
             M: `< ${VIEW_THRESHOLDS.MYTHIC_MAX} views/month`,
-            L: `≥ \${(VIEW_THRESHOLDS.L/1000).toFixed(0)}k views/month`,
-            E: `\${(VIEW_THRESHOLDS.E/1000).toFixed(0)}k – \${(VIEW_THRESHOLDS.L/1000).toFixed(0)}k/month`,
-            R: `\${(VIEW_THRESHOLDS.R/1000).toFixed(0)}k – \${(VIEW_THRESHOLDS.E/1000).toFixed(0)}k/month`,
-            C: `\${VIEW_THRESHOLDS.R/1000}k – \${VIEW_THRESHOLDS.MYTHIC_MAX}/month`,
-          }k views/month`,
+            L: `≥ ${(VIEW_THRESHOLDS.L/1000).toFixed(0)}k views/month`,
             E: `${(VIEW_THRESHOLDS.E/1000).toFixed(0)}k – ${(VIEW_THRESHOLDS.L/1000).toFixed(0)}k/month`,
             R: `${(VIEW_THRESHOLDS.R/1000).toFixed(0)}k – ${(VIEW_THRESHOLDS.E/1000).toFixed(0)}k/month`,
-            C: `< ${(VIEW_THRESHOLDS.R/1000).toFixed(0)}k/month`,
+            C: `${VIEW_THRESHOLDS.MYTHIC_MAX}–${(VIEW_THRESHOLDS.R/1000).toFixed(0)}k/month`,
           };
           return (
             <div key={r} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
