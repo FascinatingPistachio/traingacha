@@ -12,9 +12,18 @@ import Toast            from './components/Toast.jsx';
 import { drawPack, updatePity } from './utils/gacha.js';
 import { loadSave, writeSave, deleteSave, makeFreshSave } from './utils/storage.js';
 import { preloadCardImages } from './utils/preload.js';
+import { toggleMute, isMuted, soundClick } from './utils/sounds.js';
 import { PACK_COST, DAILY_BONUS } from './constants.js';
 
 function TopBar({ tickets }) {
+  const [muted, setMuted] = useState(isMuted());
+
+  const handleMute = () => {
+    const now = toggleMute();
+    setMuted(now);
+    if (!now) soundClick();
+  };
+
   return (
     <div style={{
       position: 'sticky', top: 0, zIndex: 100,
@@ -27,9 +36,21 @@ function TopBar({ tickets }) {
       <span style={{ color: '#c9a833', fontFamily: 'monospace', fontSize: 12, fontWeight: 700, letterSpacing: '.15em' }}>
         🚂 RAIL GACHA
       </span>
-      <span style={{ color: '#c9a833', fontFamily: 'monospace', fontSize: 12 }}>
-        🎫 {tickets}
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ color: '#c9a833', fontFamily: 'monospace', fontSize: 12 }}>🎫 {tickets}</span>
+        <button
+          onClick={handleMute}
+          title={muted ? 'Unmute' : 'Mute'}
+          style={{
+            background: 'none', border: '1px solid rgba(201,168,51,0.18)',
+            borderRadius: 6, padding: '3px 7px', cursor: 'pointer',
+            color: muted ? 'rgba(201,168,51,0.35)' : 'rgba(201,168,51,0.7)',
+            fontSize: 13, lineHeight: 1, transition: 'color 0.2s',
+          }}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -45,13 +66,11 @@ function LoadingScreen() {
 }
 
 export default function App() {
-  const [save, setSave]               = useState(null);
-  const [screen, setScreen]           = useState('loading');
-  // cardsPromise is kicked off the moment user clicks "open pack"
-  // so fetching happens during the animation, not after.
+  const [save, setSave]             = useState(null);
+  const [screen, setScreen]         = useState('loading');
   const [cardsPromise, setCardsPromise] = useState(null);
-  const [busy, setBusy]               = useState(false);
-  const [toast, setToast]             = useState(null);
+  const [busy, setBusy]             = useState(false);
+  const [toast, setToast]           = useState(null);
 
   useEffect(() => {
     loadSave().then((data) => {
@@ -98,27 +117,19 @@ export default function App() {
     if (busy) return;
     setBusy(true);
 
-    // ── KEY CHANGE: start the Wikipedia fetch IMMEDIATELY, before the animation.
-    // We wrap it in a promise and pass it to OpeningScreen, which awaits it
-    // after the pack-tear animation completes.
+    // Start fetch IMMEDIATELY — runs during the animation
     const promise = drawPack(save.pity ?? 0).then(async (cards) => {
       if (!cards?.length) return [];
-      // Preload images while user is still on the animation/reveal screen
       preloadCardImages(cards).catch(() => {});
       return cards;
     });
 
     setCardsPromise(promise);
-
-    // Deduct tickets and update pity optimistically so the UI feels instant
     await updateSave({ tickets: save.tickets - PACK_COST });
-
     setScreen('opening');
     setBusy(false);
   };
 
-  // Called when the OpeningScreen "DONE" button is pressed.
-  // At this point we have the resolved cards and can persist them.
   const handleOpeningDone = async () => {
     if (!cardsPromise) { setScreen('collection'); return; }
     try {
@@ -133,14 +144,14 @@ export default function App() {
               collection[card.id] = { ...card, count: 1, addedAt: new Date().toISOString() };
             }
           }
-          const newPity   = updatePity(prev.pity ?? 0, cards);
-          const newPulls  = (prev.totalPulls ?? 0) + cards.length;
-          const next      = { ...prev, collection, pity: newPity, totalPulls: newPulls };
+          const newPity  = updatePity(prev.pity ?? 0, cards);
+          const newPulls = (prev.totalPulls ?? 0) + cards.length;
+          const next     = { ...prev, collection, pity: newPity, totalPulls: newPulls };
           writeSave(next);
           return next;
         });
       }
-    } catch { /* fetch failed — tickets already deducted, nothing to add */ }
+    } catch { /* fetch failed */ }
     setCardsPromise(null);
     setScreen('collection');
   };

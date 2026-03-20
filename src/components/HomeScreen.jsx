@@ -1,4 +1,5 @@
 import { RARITY, PACK_COST, DAILY_BONUS } from '../constants.js';
+import { soundDailyClaim, soundBuy, soundClick } from '../utils/sounds.js';
 
 export default function HomeScreen({ save, onDaily, onPack, goShop }) {
   const today       = new Date().toISOString().split('T')[0];
@@ -9,6 +10,22 @@ export default function HomeScreen({ save, onDaily, onPack, goShop }) {
     acc[entry.rarity] = (acc[entry.rarity] ?? 0) + 1;
     return acc;
   }, {});
+
+  const handleDaily = () => {
+    if (!canClaim) return;
+    soundDailyClaim();
+    onDaily();
+  };
+
+  const handlePack = () => {
+    if (save.tickets >= PACK_COST) {
+      soundBuy();
+      onPack();
+    } else {
+      soundClick();
+      goShop();
+    }
+  };
 
   return (
     <div style={{ padding: '18px 14px', maxWidth: 480, margin: '0 auto' }}>
@@ -55,7 +72,7 @@ export default function HomeScreen({ save, onDaily, onPack, goShop }) {
       )}
 
       {/* Daily */}
-      <button onClick={canClaim ? onDaily : undefined} style={{
+      <button onClick={handleDaily} style={{
         width: '100%', padding: '13px', marginBottom: 9,
         background: canClaim ? 'linear-gradient(135deg,#1a3a1a,#0e2a0e)' : '#0c1825',
         border: `1px solid ${canClaim ? 'rgba(74,175,74,0.4)' : 'rgba(201,168,51,0.08)'}`,
@@ -68,7 +85,7 @@ export default function HomeScreen({ save, onDaily, onPack, goShop }) {
       </button>
 
       {/* Open pack */}
-      <button className="btn" onClick={save.tickets >= PACK_COST ? onPack : goShop} style={{
+      <button className="btn" onClick={handlePack} style={{
         width: '100%', padding: '13px',
         background: save.tickets >= PACK_COST ? 'linear-gradient(135deg,#0f2240,#09162d)' : '#0a1420',
         border: `1px solid ${save.tickets >= PACK_COST ? 'rgba(79,168,232,0.38)' : 'rgba(255,255,255,0.07)'}`,
@@ -80,18 +97,11 @@ export default function HomeScreen({ save, onDaily, onPack, goShop }) {
       </button>
 
       {/* WikiGacha attribution */}
-      <div style={{
-        borderTop: '1px solid rgba(255,255,255,0.05)',
-        paddingTop: 16, textAlign: 'center',
-      }}>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16, textAlign: 'center' }}>
         <p style={{ fontSize: 8.5, color: '#1a2e40', fontFamily: 'monospace', lineHeight: 1.8, margin: 0 }}>
           Inspired by{' '}
-          <a
-            href="https://wikigacha.com/?lang=EN"
-            target="_blank"
-            rel="noreferrer"
-            style={{ color: '#2a4a6a', textDecoration: 'underline', textUnderlineOffset: 3 }}
-          >
+          <a href="https://wikigacha.com/?lang=EN" target="_blank" rel="noreferrer"
+            style={{ color: '#2a4a6a', textDecoration: 'underline', textUnderlineOffset: 3 }}>
             WikiGacha
           </a>
           {' '}— the original Wikipedia card game.
