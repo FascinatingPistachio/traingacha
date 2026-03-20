@@ -1,58 +1,74 @@
 /* ── Trading card base ──────────────────────────────────────────────────── */
 .tc {
   position: relative;
-  border-radius: 12px;
+  border-radius: 13px;
   overflow: hidden;
   flex-shrink: 0;
   transition: transform 0.22s ease, box-shadow 0.22s ease;
   cursor: default;
-  /* Crisp border via outline trick */
-  outline: 2px solid transparent;
 }
-
 .tc.clickable { cursor: pointer; }
-.tc.clickable:hover {
-  transform: translateY(-7px) scale(1.05) rotate(-0.5deg);
-}
-
+.tc.clickable:hover { transform: translateY(-7px) scale(1.05) rotate(-0.4deg); }
 .tc.revealed  { animation: flipIn 0.46s cubic-bezier(0.22,1,0.36,1); }
 
 /* Rarity glow animations */
-.tc.r-L { animation: goldPulse 2.5s ease-in-out infinite; }
-.tc.r-E { animation: epicGlow  2.8s ease-in-out infinite; }
-.tc.r-L.revealed { animation: flipIn 0.46s cubic-bezier(0.22,1,0.36,1), goldPulse 2.5s ease-in-out 0.5s infinite; }
-.tc.r-E.revealed { animation: flipIn 0.46s cubic-bezier(0.22,1,0.36,1), epicGlow  2.8s ease-in-out 0.5s infinite; }
+.tc.r-L { animation: goldPulse  2.5s ease-in-out infinite; }
+.tc.r-E { animation: epicGlow   2.8s ease-in-out infinite; }
+.tc.r-M { animation: mythicBorder 3s linear infinite; }
+.tc.r-L.revealed { animation: flipIn .46s cubic-bezier(0.22,1,0.36,1), goldPulse  2.5s ease-in-out 0.5s infinite; }
+.tc.r-E.revealed { animation: flipIn .46s cubic-bezier(0.22,1,0.36,1), epicGlow   2.8s ease-in-out 0.5s infinite; }
+.tc.r-M.revealed { animation: flipIn .46s cubic-bezier(0.22,1,0.36,1), mythicBorder 3s linear 0.5s infinite; }
 
-/* ── Holographic foil overlay ───────────────────────────────────────────── */
-.tc-foil {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 4;
-  background-size: 300% 300%;
-  animation: foilShimmer 4s linear infinite;
-  mix-blend-mode: overlay;
+@keyframes mythicBorder {
+  0%   { box-shadow: 0 0 0 2px #8080ff, 0 0 28px rgba(100,100,255,0.6), 0 4px 20px rgba(0,0,0,0.7); }
+  14%  { box-shadow: 0 0 0 2px #c080ff, 0 0 28px rgba(180,80,255,0.6),  0 4px 20px rgba(0,0,0,0.7); }
+  28%  { box-shadow: 0 0 0 2px #ff80c0, 0 0 28px rgba(255,80,180,0.6),  0 4px 20px rgba(0,0,0,0.7); }
+  42%  { box-shadow: 0 0 0 2px #80ffb0, 0 0 28px rgba(80,255,160,0.6),  0 4px 20px rgba(0,0,0,0.7); }
+  57%  { box-shadow: 0 0 0 2px #80d4ff, 0 0 28px rgba(80,200,255,0.6),  0 4px 20px rgba(0,0,0,0.7); }
+  71%  { box-shadow: 0 0 0 2px #ffe080, 0 0 28px rgba(255,220,80,0.6),  0 4px 20px rgba(0,0,0,0.7); }
+  85%  { box-shadow: 0 0 0 2px #ff9080, 0 0 28px rgba(255,120,80,0.6),  0 4px 20px rgba(0,0,0,0.7); }
+  100% { box-shadow: 0 0 0 2px #8080ff, 0 0 28px rgba(100,100,255,0.6), 0 4px 20px rgba(0,0,0,0.7); }
 }
 
+/* ── Holographic foil overlays ──────────────────────────────────────────── */
+.tc-foil {
+  position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; z-index: 4; mix-blend-mode: overlay;
+}
 .tc-foil-L {
-  background: linear-gradient(
-    135deg,
-    rgba(255,215,0,0)    0%,
-    rgba(255,215,0,0.18) 20%,
-    rgba(255,255,255,0.22) 40%,
-    rgba(255,165,0,0.18) 60%,
-    rgba(255,215,0,0)   100%
-  );
+  background: linear-gradient(135deg,
+    rgba(255,215,0,0) 0%, rgba(255,215,0,.2) 22%,
+    rgba(255,255,255,.24) 44%, rgba(255,165,0,.2) 66%,
+    rgba(255,215,0,0) 100%);
+  background-size: 300% 300%;
+  animation: foilShimmer 3.8s linear infinite;
 }
 .tc-foil-E {
-  background: linear-gradient(
-    135deg,
-    rgba(180,100,255,0)    0%,
-    rgba(180,100,255,0.18) 25%,
-    rgba(255,255,255,0.2)  50%,
-    rgba(100,150,255,0.18) 75%,
-    rgba(180,100,255,0)   100%
+  background: linear-gradient(135deg,
+    rgba(180,100,255,0) 0%, rgba(180,100,255,.2) 28%,
+    rgba(255,255,255,.22) 50%, rgba(100,150,255,.2) 72%,
+    rgba(180,100,255,0) 100%);
+  background-size: 300% 300%;
+  animation: foilShimmer 4.2s linear infinite;
+}
+/* Mythic gets full-spectrum rainbow foil */
+.tc-foil-M {
+  background: linear-gradient(270deg,
+    #ff808088, #ffff8066, #80ff8066, #80ffff66,
+    #8080ff88, #ff80ff66, #ff808088);
+  background-size: 400% 100%;
+  animation: mythicRainbow 2.8s linear infinite;
+  mix-blend-mode: color-dodge;
+  opacity: 0.35;
+}
+/* Mythic scanlines texture */
+.tc-scanlines {
+  position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; z-index: 3;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent, transparent 2px,
+    rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px
   );
 }
 
@@ -61,76 +77,34 @@
   50%  { background-position: 100% 100%; }
   100% { background-position: 0%   0%;   }
 }
+@keyframes mythicRainbow {
+  0%   { background-position: 0%   50%; }
+  100% { background-position: 400% 50%; }
+}
 
 /* ── Card back ──────────────────────────────────────────────────────────── */
 .tc-back {
-  position: relative;
-  border-radius: 12px;
-  overflow: hidden;
-  flex-shrink: 0;
-  transition: transform 0.22s ease;
-  border: 2.5px solid rgba(201,168,51,0.35);
-  background: linear-gradient(160deg, #0d1f35, #06101c);
+  position: relative; border-radius: 13px; overflow: hidden;
+  flex-shrink: 0; transition: transform 0.22s ease;
+  border: 2px solid rgba(201,168,51,0.35);
+  background: linear-gradient(160deg, #0d1f35, #060f1c);
 }
 .tc-back.tappable:hover {
-  transform: translateY(-10px) scale(1.08) rotate(0.5deg);
+  transform: translateY(-10px) scale(1.08) rotate(0.4deg);
   cursor: pointer;
 }
 
-/* ── Pack animation ─────────────────────────────────────────────────────── */
-@keyframes packShake {
-  0%,100% { transform: rotate(0deg); }
-  20%     { transform: rotate(-2deg) translateX(-3px); }
-  40%     { transform: rotate(2deg)  translateX(3px);  }
-  60%     { transform: rotate(-1.5deg); }
-  80%     { transform: rotate(1.5deg);  }
-}
-
-@keyframes tearTop {
-  0%   { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: translateY(0) rotate(0deg); }
-  100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: translateY(-120%) rotate(-8deg); opacity: 0; }
-}
-
-@keyframes tearBottom {
-  0%   { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: translateY(0) rotate(0deg); }
-  100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: translateY(120%)  rotate(8deg);  opacity: 0; }
-}
-
-@keyframes cardFanIn {
-  0%   { transform: translateY(60px) scale(0.85); opacity: 0; }
-  60%  { transform: translateY(-8px) scale(1.03); }
-  100% { transform: translateY(0)    scale(1);    opacity: 1; }
-}
-
-@keyframes glowBurst {
-  0%   { opacity: 0; transform: scale(0.6); }
-  40%  { opacity: 1; }
-  100% { opacity: 0; transform: scale(2.2); }
-}
-
-.pack-shake { animation: packShake 0.5s ease-in-out; }
-
 /* ── Character badge ────────────────────────────────────────────────────── */
 .char-badge {
-  position: absolute;
-  top: 6px;
-  right: -4px;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7));
+  position: absolute; top: 5px; right: -3px; z-index: 6;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.75));
 }
-
 .char-badge-bubble {
   background: linear-gradient(135deg, #1a1a2e, #16213e);
-  border: 1.5px solid rgba(255,255,255,0.18);
-  border-radius: 20px;
-  padding: 3px 6px 3px 4px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  border-radius: 20px; padding: 2px 6px 2px 4px;
+  display: flex; align-items: center; gap: 3px;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.55);
 }

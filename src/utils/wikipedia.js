@@ -1,6 +1,6 @@
-import { VIEW_THRESHOLDS } from '../constants.js';
+import { VIEW_THRESHOLDS, FICTIONAL_TITLE_PATTERNS } from '../constants.js';
 import { applyCharacterRarityBoost, getCharacterForTrain } from './characters.js';
-import { getThomasArticleIndex, fetchThomasCharacters } from './thomas.js';
+import { getThomasArticleIndex } from './thomas.js';
 
 export const CATEGORIES = {
   famous: [
@@ -41,40 +41,37 @@ export const CATEGORIES = {
     'Diesel_locomotives_of_Australia',
     'Electric_locomotives_of_France',
     'Electric_multiple_units_of_Switzerland',
-    'Commuter_rail_vehicles_of_the_United_States',
     'Narrow-gauge_locomotives',
     'Rack_railways',
   ],
 };
 
-export const ALL_CATEGORIES  = [...CATEGORIES.famous, ...CATEGORIES.notable, ...CATEGORIES.general];
+export const ALL_CATEGORIES = [...CATEGORIES.famous, ...CATEGORIES.notable, ...CATEGORIES.general];
 export const PITY_POOL = {
   high: CATEGORIES.famous,
   mid:  [...CATEGORIES.famous, ...CATEGORIES.famous, ...CATEGORIES.notable],
   low:  ALL_CATEGORIES,
 };
 
-// ── In-memory caches ─────────────────────────────────────────────────────────
-const categoryMembersCache = new Map();  // category → string[]
-const articleCache         = new Map();  // canonical title → article object
-const viewsCache           = new Map();  // title → number
+const categoryMembersCache = new Map();
+const articleCache         = new Map(); // canonical title → result
+const viewsCache           = new Map();
 
-// Session-level dedup: tracks all titles seen this session
-const sessionSeen = new Set();
-
-// Longer-term dedup: persisted in sessionStorage so refreshes don't repeat cards
 function getSeenPersisted() {
   try { return new Set(JSON.parse(sessionStorage.getItem('rg_seen') ?? '[]')); }
   catch { return new Set(); }
 }
 function addSeenPersisted(title) {
   try {
-    const s = getSeenPersisted();
+    const s   = getSeenPersisted();
     s.add(title);
-    // Keep only last 150 to avoid bloat
-    const arr = [...s].slice(-150);
-    sessionStorage.setItem('rg_seen', JSON.stringify(arr));
+    sessionStorage.setItem('rg_seen', JSON.stringify([...s].slice(-200)));
   } catch {}
+}
+
+/** Returns true if a Wikipedia article title refers to a fictional entity */
+function isFictionalArticle(title) {
+  return FICTIONAL_TITLE_PATTERNS.some(p => p.test(title));
 }
 
 export async function getCategoryMembers(category) {
@@ -84,10 +81,13 @@ export async function getCategoryMembers(category) {
       action:'query', list:'categorymembers', cmtitle:`Category:${category}`,
       cmlimit:'100', cmtype:'page', format:'json', origin:'*',
     });
-    const res  = await fetch(`https://en.wikipedia.org/w/api.php?${params}`);
+    const res   = await fetch(`https://en.wikipedia.org/w/api.php?${params}`);
     if (!res.ok) throw new Error();
-    const data = await res.json();
-    const members = (data.query?.categorymembers ?? []).map(m => m.title);
+    const data  = await res.json();
+    // Filter fictional titles at source
+    const members = (data.query?.categorymembers ?? [])
+      .map(m => m.title)
+      .filter(t => !isFictionalArticle(t));
     categoryMembersCache.set(category, members);
     return members;
   } catch {
@@ -108,7 +108,9 @@ export async function getMonthlyPageViews(title) {
     if (!res.ok) { viewsCache.set(title, 0); return 0; }
     const data  = await res.json();
     const items = data.items ?? [];
-    const avg   = items.length ? Math.round(items.reduce((s,i) => s+i.views, 0) / items.length) : 0;
+    const avg   = items.length
+      ? Math.round(items.reduce((s, i) => s + i.views, 0) / items.length)
+      : 0;
     viewsCache.set(title, avg);
     return avg;
   } catch {
@@ -117,29 +119,38 @@ export async function getMonthlyPageViews(title) {
   }
 }
 
+/**
+ * Bimodal rarity:
+ *  - Mythic   = VERY obscure (< MYTHIC_MAX views) AND 12% probability roll → rarer than Legendary
+ *  - Legendary = globally famous (≥ 80k views)
+ *  - Between those: Epic / Rare / Common by view count
+ */
 export function rarityFromViews(views) {
-  // Bimodal: obscure ghosts are Mythic, famous icons are Legendary
-  if (views > 0 && views < VIEW_THRESHOLDS.MYTHIC_MAX) return 'M';   // Ghost train
-  if (views >= VIEW_THRESHOLDS.L) return 'L';                          // World-famous
+  if (views > 0 && views < VIEW_THRESHOLDS.MYTHIC_MAX) {
+    // Only become Mythic 12% of the time — rest are demoted to Common
+    return Math.random() < VIEW_THRESHOLDS.MYTHIC_PROB ? 'M' : 'C';
+  }
+  if (views >= VIEW_THRESHOLDS.L) return 'L';
   if (views >= VIEW_THRESHOLDS.E) return 'E';
   if (views >= VIEW_THRESHOLDS.R) return 'R';
   return 'C';
 }
 
 export async function fetchArticleSummary(title) {
-  // Check cache by input title first
-  if (articleCache.has(title)) return articleCache.get(title);
+  // Skip fictional articles
+  if (isFictionalArticle(title)) return null;
+  if (articleCache.has(title))   return articleCache.get(title);
+
   try {
     const encoded = encodeURIComponent(title.replace(/ /g, '_'));
-    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`);
+    const res     = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`);
     if (!res.ok) return null;
     const d = await res.json();
-    if (!d.thumbnail?.source) return null;
 
-    // Use the canonical title from response to prevent cache key mismatches
+    if (!d.thumbnail?.source)     return null;   // no image → skip
+    if (isFictionalArticle(d.title ?? '')) return null; // double-check canonical title
+
     const canonicalTitle = d.title ?? title;
-
-    // Check if we already have this canonical title cached
     if (articleCache.has(canonicalTitle)) {
       const cached = articleCache.get(canonicalTitle);
       articleCache.set(title, cached);
@@ -149,35 +160,39 @@ export async function fetchArticleSummary(title) {
     const extract = (d.extract ?? '')
       .replace(/\([^)]*\)/g, '')
       .split(/\.(?:\s+|$)/)
-      .map(s => s.trim()).filter(Boolean).slice(0, 2).join('. ').trim();
+      .map(s => s.trim()).filter(Boolean)
+      .slice(0, 2).join('. ').trim();
 
     const result = {
-      id:       canonicalTitle.toLowerCase().replace(/\W+/g, '_'),
-      title:    canonicalTitle,
-      extract:  extract ? extract + '.' : '',
-      image:    d.thumbnail.source.replace(/\/\d+px-/, '/400px-'),
-      imageHD:  d.thumbnail.source.replace(/\/\d+px-/, '/800px-'),
-      url:      d.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encoded}`,
-      // Store thumbnail origin for debugging
-      _imgBase: d.thumbnail.source,
+      id:      canonicalTitle.toLowerCase().replace(/\W+/g, '_'),
+      title:   canonicalTitle,
+      extract: extract ? extract + '.' : '',
+      image:   d.thumbnail.source.replace(/\/\d+px-/, '/400px-'),
+      imageHD: d.thumbnail.source.replace(/\/\d+px-/, '/800px-'),
+      url:     d.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encoded}`,
     };
 
-    // Cache by both input title and canonical title
     articleCache.set(title, result);
     articleCache.set(canonicalTitle, result);
     return result;
   } catch { return null; }
 }
 
+/**
+ * Draw one card for a Thomas-character pull.
+ * Fetches the REAL LOCOMOTIVE article the character is based on,
+ * and attaches the character as badge data only.
+ */
 export async function fetchThomasCard() {
-  const thomasIndex = await getThomasArticleIndex();
-  const chars       = await fetchThomasCharacters();
-  const entries     = Object.values(chars);
+  const { fetchThomasCharacters } = await import('./thomas.js');
+  const chars   = await fetchThomasCharacters();
+  const entries = Object.values(chars).filter(c => c.wikiArticle && !isFictionalArticle(c.wikiArticle));
   if (!entries.length) return null;
-  const seen = getSeenPersisted();
-  const shuffled = [...entries].filter(c => c.wikiArticle && !seen.has(c.wikiArticle)).sort(() => Math.random() - 0.5);
-  // Fallback to seen if all seen
-  const pool = shuffled.length ? shuffled : [...entries].filter(c => c.wikiArticle).sort(() => Math.random() - 0.5);
+
+  const seen     = getSeenPersisted();
+  const unseen   = entries.filter(c => !seen.has(c.wikiArticle));
+  const pool     = (unseen.length ? unseen : entries).sort(() => Math.random() - 0.5);
+
   for (const char of pool) {
     const article = await fetchArticleSummary(char.wikiArticle);
     if (!article) continue;
@@ -190,8 +205,10 @@ export async function fetchThomasCard() {
   return null;
 }
 
+const sessionSeen = new Set();
+
 export async function fetchTrainCard(categoryPool, maxAttempts = 16) {
-  const thomasIndex = await getThomasArticleIndex();
+  const thomasIndex   = await getThomasArticleIndex();
   const persistedSeen = getSeenPersisted();
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -199,22 +216,23 @@ export async function fetchTrainCard(categoryPool, maxAttempts = 16) {
     const members  = await getCategoryMembers(category);
     if (!members.length) continue;
 
-    // Prefer unseen titles (session + persisted)
-    const unseen = members.filter(t => !sessionSeen.has(t) && !persistedSeen.has(t));
-    const pool   = unseen.length > 0 ? unseen : members.filter(t => !sessionSeen.has(t));
-    const finalPool = pool.length > 0 ? pool : members;
-    const title  = finalPool[Math.floor(Math.random() * finalPool.length)];
+    const unseen    = members.filter(t => !sessionSeen.has(t) && !persistedSeen.has(t));
+    const pool      = (unseen.length ? unseen : members.filter(t => !sessionSeen.has(t)));
+    const finalPool = pool.length ? pool : members;
+    const title     = finalPool[Math.floor(Math.random() * finalPool.length)];
+
+    if (isFictionalArticle(title)) continue;
 
     const article = await fetchArticleSummary(title);
     if (!article) continue;
 
     const views     = await getMonthlyPageViews(title);
     let   rarity    = rarityFromViews(views);
-    const character = getCharacterForTrain(title, thomasIndex);
+    const character = getCharacterForTrain(article.title, thomasIndex);
     if (character) rarity = applyCharacterRarityBoost(rarity, character);
 
     sessionSeen.add(title);
-    sessionSeen.add(article.title); // also mark canonical title
+    sessionSeen.add(article.title);
     addSeenPersisted(title);
     return { ...article, rarity, views, character: character ?? null };
   }

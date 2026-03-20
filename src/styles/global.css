@@ -37,10 +37,10 @@ html, body, #root { height: 100%; background: #06101c; color: #e8e0d0; font-fami
 .tc.revealed  { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1); }
 .tc.r-L { animation:goldPulse 2.5s ease-in-out infinite; }
 .tc.r-E { animation:epicGlow  2.8s ease-in-out infinite; }
-.tc.r-M { animation:mythicPulse 3s ease-in-out infinite; }
+.tc.r-M { /* handled by cards.css mythicBorder */ }
 .tc.r-L.revealed { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1), goldPulse 2.5s ease-in-out 0.5s infinite; }
 .tc.r-E.revealed { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1), epicGlow  2.8s ease-in-out 0.5s infinite; }
-.tc.r-M.revealed { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1), mythicPulse 3s ease-in-out 0.5s infinite; }
+.tc.r-M.revealed { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1); }
 
 .tc-foil  { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:4; mix-blend-mode:overlay; }
 .tc-foil-L,.tc-foil-E { background-size:300% 300%; animation:shimmer 4s linear infinite; }

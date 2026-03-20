@@ -92,7 +92,7 @@ export default function CardDetailModal({ card, count, onClose, isFav=false, onF
             <div style={{ background:'rgba(100,120,255,0.08)', border:'1px solid rgba(160,180,255,0.2)',
               borderRadius:7, padding:'8px 11px', marginBottom:12,
               fontSize:10, color:'rgba(180,200,255,0.7)', fontFamily:'Georgia,serif', fontStyle:'italic', lineHeight:1.65 }}>
-              This is a ghost train — an almost unknown locomotive that fewer than {card.views??'a handful of'} people searched for on Wikipedia last month. You may be one of the only collectors in the world with this card.
+              This is a GHOST TRAIN — almost invisible on Wikipedia, with fewer than {card.views??'a handful of'} people searched for on Wikipedia last month. Fewer than 1 in 100 packs yields a Mythic. You may be among the very first to own this card.
             </div>
           )}
 

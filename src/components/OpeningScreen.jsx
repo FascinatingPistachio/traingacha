@@ -36,24 +36,39 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
     );
   }
 
-  const done   = revealed.size === cards.length;
-  const reveal = (i) => { if (revealed.has(i)) return; soundFlip(cards[i]?.rarity??'C'); setRevealed(p=>new Set([...p,i])); };
-  const revealAll = () => {
-    cards.forEach((c,i) => { if (!revealed.has(i)) setTimeout(()=>soundFlip(c.rarity),i*90); });
-    setRevealed(new Set(cards.map((_,i)=>i)));
+  const done = revealed.size === cards.length;
+
+  const reveal = (i) => {
+    if (revealed.has(i)) return;
+    soundFlip(cards[i]?.rarity ?? 'C');
+    setRevealed(p => new Set([...p, i]));
   };
 
-  const best      = cards.length ? cards.reduce((b,c)=>(RARITY[c.rarity]?.rank??0)>(RARITY[b.rarity]?.rank??0)?c:b,cards[0]) : null;
-  const bestRank  = best ? (RARITY[best.rarity]?.rank??0) : 0;
+  const revealAll = () => {
+    cards.forEach((c, i) => { if (!revealed.has(i)) setTimeout(() => soundFlip(c.rarity), i * 90); });
+    setRevealed(new Set(cards.map((_, i) => i)));
+  };
+
+  // ── Best pull — only computed and shown AFTER all cards revealed ──────────
+  const best = done && cards.length
+    ? cards.reduce((b, c) => (RARITY[c.rarity]?.rank ?? 0) > (RARITY[b.rarity]?.rank ?? 0) ? c : b, cards[0])
+    : null;
+  const bestRank = best ? (RARITY[best.rarity]?.rank ?? 0) : 0;
 
   return (
-    <div style={{ minHeight:'calc(100vh - 100px)', padding:'18px 10px 28px', display:'flex', flexDirection:'column', alignItems:'center', maxWidth:620, margin:'0 auto' }}>
-      <h2 style={{ color:'#c9a833', margin:'0 0 4px', fontSize:13, fontFamily:'monospace', letterSpacing:'.2em' }}>YOUR CARDS</h2>
+    <div style={{
+      minHeight: 'calc(100vh - 100px)', padding:'18px 10px 28px',
+      display:'flex', flexDirection:'column', alignItems:'center',
+      maxWidth:640, margin:'0 auto',
+    }}>
+      <h2 style={{ color:'#c9a833', margin:'0 0 4px', fontSize:13, fontFamily:'monospace', letterSpacing:'.2em' }}>
+        YOUR CARDS
+      </h2>
       <p style={{ fontSize:8.5, color:'#1e3a5a', margin:'0 0 22px', fontFamily:'monospace' }}>
         {done ? 'ALL CARDS REVEALED' : `TAP TO REVEAL · ${revealed.size}/${cards.length}`}
       </p>
 
-      {/* Cards — md size, all same dimensions */}
+      {/* Cards — md size, uniform dimensions */}
       <div style={{ display:'flex', gap:10, flexWrap:'wrap', justifyContent:'center', marginBottom:22 }}>
         {cards.map((card, i) =>
           revealed.has(i) ? (
@@ -61,37 +76,44 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
               <RailCard card={card} size="md" revealed />
             </div>
           ) : (
-            <CardBack
-              key={i}
-              size="md"
-              onClick={() => reveal(i)}
-              delay={0}
-              onHover={() => soundPackHover()}
-            />
+            <CardBack key={i} size="md" onClick={() => reveal(i)} onHover={() => soundPackHover()} />
           )
         )}
       </div>
 
-      {/* Best pull banner */}
-      {revealed.size > 0 && best && bestRank >= 2 && (
+      {/* ── Best pull banner — ONLY shows after ALL cards are revealed ── */}
+      {done && best && bestRank >= 2 && (
         <div style={{
-          background:`linear-gradient(135deg,${RARITY[best.rarity].bg},#06101c)`,
-          border:`1.5px solid ${RARITY[best.rarity].border}`,
-          borderRadius:10, padding:'10px 18px', marginBottom:16, maxWidth:340,
-          boxShadow:`0 0 22px ${RARITY[best.rarity].glow}`,
-          animation:'fadeUp 0.4s ease-out',
-          display:'flex', gap:11, alignItems:'center',
+          background: `linear-gradient(135deg, ${RARITY[best.rarity].bg}, #030610)`,
+          border: `2px solid ${RARITY[best.rarity].border}`,
+          borderRadius: 12, padding:'12px 18px', marginBottom:18, maxWidth:360,
+          boxShadow: `0 0 28px ${RARITY[best.rarity].glow}`,
+          animation:'fadeUp 0.45s ease-out',
+          display:'flex', gap:12, alignItems:'center',
         }}>
-          <div style={{ width:46, height:46, borderRadius:6, overflow:'hidden', flexShrink:0 }}>
-            <img src={best.image} alt={best.title} style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>{e.target.style.display='none'}} />
+          {/* Thumbnail */}
+          <div style={{ width:52, height:52, borderRadius:8, overflow:'hidden', flexShrink:0,
+            border:`1.5px solid ${RARITY[best.rarity].border}` }}>
+            <img src={best.image} alt={best.title}
+              style={{ width:'100%', height:'100%', objectFit:'cover' }}
+              onError={e => { e.target.style.display='none'; }} />
           </div>
-          <div>
-            <div style={{ fontSize:8, color:RARITY[best.rarity].color, fontFamily:'monospace', letterSpacing:'.1em', marginBottom:2 }}>
-              {best.rarity==='M' ? '✦ MYTHIC PULL! INCREDIBLY RARE!' : bestRank===3?'⭐ LEGENDARY PULL!':'✨ EPIC PULL!'}
+
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:8, color:RARITY[best.rarity].color, fontFamily:'monospace', letterSpacing:'.1em', marginBottom:3 }}>
+              {best.rarity === 'M'
+                ? '✦ MYTHIC PULL — ONE IN A THOUSAND'
+                : best.rarity === 'L'
+                  ? '⭐ LEGENDARY PULL!'
+                  : '✨ EPIC PULL!'}
             </div>
-            <div style={{ fontSize:11.5, color:'#e8e0d0', fontFamily:'Georgia,serif', fontWeight:700 }}>{best.title}</div>
+            <div style={{ fontSize:12, color:'#f0e8d8', fontFamily:'Georgia,serif', fontWeight:700, lineHeight:1.25,
+              overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>
+              {best.title}
+            </div>
             {best.character && (
-              <div style={{ fontSize:8.5, color:'rgba(220,180,255,0.7)', fontFamily:'monospace', marginTop:2 }}>
+              <div style={{ fontSize:8.5, color:'rgba(220,180,255,0.75)', fontFamily:'monospace', marginTop:3,
+                overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>
                 {best.character.emoji} {best.character.note}
               </div>
             )}
@@ -101,20 +123,21 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
 
       <div style={{ display:'flex', gap:9 }}>
         {!done && (
-          <button onClick={revealAll} style={{ padding:'9px 22px', background:'#0c1825',
-            border:'1px solid rgba(201,168,51,0.28)', borderRadius:8, color:'#c9a833',
-            fontSize:10.5, cursor:'pointer', fontFamily:'monospace' }}>
+          <button onClick={revealAll} style={{
+            padding:'9px 22px', background:'#0c1825',
+            border:'1px solid rgba(201,168,51,0.28)', borderRadius:8,
+            color:'#c9a833', fontSize:10.5, cursor:'pointer', fontFamily:'monospace',
+          }}>
             REVEAL ALL
           </button>
         )}
         {done && (
-          // ← Goes back to SHOP (pack area), not collection
           <button className="btn" onClick={onDone} style={{
             padding:'12px 38px', background:'linear-gradient(135deg,#c9a833,#8a6e1a)',
-            border:'none', borderRadius:8, color:'#06101c', fontSize:13, fontWeight:700,
-            cursor:'pointer', fontFamily:'monospace', letterSpacing:'.1em',
+            border:'none', borderRadius:8, color:'#06101c',
+            fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'monospace', letterSpacing:'.1em',
           }}>
-            OPEN ANOTHER PACK →
+            OPEN ANOTHER →
           </button>
         )}
       </div>
