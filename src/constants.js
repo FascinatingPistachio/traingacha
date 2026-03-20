@@ -50,3 +50,11 @@ export const VIEW_THRESHOLDS = {
   R: 6_000,    // e.g. regional express services, notable heritage lines
   // below R_threshold → Common
 };
+
+// ── Ticket economy ────────────────────────────────────────────────────────────
+export const TIMER_INTERVAL_MS  = 30 * 60 * 1000;  // 30 min per charge
+export const TIMER_TICKETS      = 25;               // tickets per charge
+export const TIMER_MAX_CHARGES  = 3;                // max stored charges
+export const AD_TICKETS         = 50;               // tickets per ad watch
+export const AD_COOLDOWN_MS     = 5 * 60 * 1000;    // 5 min between ads
+export const AD_DURATION_S      = 30;               // simulated ad length (seconds)
