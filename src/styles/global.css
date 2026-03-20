@@ -1,0 +1,157 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  background: #06101c;
+  color: #e8e0d0;
+  font-family: Georgia, 'Times New Roman', serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* ── Animations ── */
+@keyframes shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes flipIn {
+  0%   { transform: perspective(700px) rotateY(90deg) scale(0.88); opacity: 0; }
+  65%  { transform: perspective(700px) rotateY(-5deg) scale(1.02); }
+  100% { transform: perspective(700px) rotateY(0deg)  scale(1);    opacity: 1; }
+}
+
+@keyframes fadeUp {
+  from { transform: translateY(14px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.48; }
+}
+
+@keyframes goldPulse {
+  0%, 100% { box-shadow: 0 0 22px rgba(232,192,64,0.45); }
+  50%       { box-shadow: 0 0 55px rgba(232,192,64,0.82); }
+}
+
+@keyframes epicGlow {
+  0%, 100% { box-shadow: 0 0 18px rgba(181,123,238,0.4); }
+  50%       { box-shadow: 0 0 44px rgba(181,123,238,0.72); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes trainSlide {
+  from { transform: translateX(-60px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+/* ── Rail card base ── */
+.rail-card {
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  cursor: default;
+}
+
+.rail-card.clickable:hover {
+  transform: translateY(-6px) scale(1.04) !important;
+  cursor: pointer;
+}
+
+.rail-card.revealed {
+  animation: flipIn 0.44s ease-out;
+}
+
+.rail-card.legendary {
+  animation: goldPulse 2.5s ease-in-out infinite;
+}
+
+.rail-card.legendary.revealed {
+  animation: flipIn 0.44s ease-out, goldPulse 2.5s ease-in-out 0.44s infinite;
+}
+
+.rail-card.epic {
+  animation: epicGlow 2.8s ease-in-out infinite;
+}
+
+.rail-card.epic.revealed {
+  animation: flipIn 0.44s ease-out, epicGlow 2.8s ease-in-out 0.44s infinite;
+}
+
+/* ── Shimmer overlay on epic/legendary ── */
+.shimmer-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+  background-size: 300% 100%;
+  animation: shimmer 3.5s linear infinite;
+}
+
+/* ── Card back ── */
+.card-back {
+  transition: transform 0.22s ease;
+}
+
+.card-back.tappable:hover {
+  transform: translateY(-9px) scale(1.07) !important;
+  cursor: pointer;
+}
+
+/* ── Spinner ── */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,0.12);
+  border-top-color: rgba(255,255,255,0.55);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+/* ── Nav button ── */
+.nav-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-top: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  color: #1a3050;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.nav-btn:hover  { background: rgba(201,168,51,0.09) !important; }
+.nav-btn.active { color: #c9a833 !important; border-top-color: #c9a833 !important; }
+
+/* ── Generic button ── */
+.btn {
+  transition: filter 0.15s, transform 0.1s;
+}
+.btn:hover  { filter: brightness(1.12); }
+.btn:active { transform: scale(0.97); }
+
+/* ── Scrollable areas ── */
+.scroll-area {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-area::-webkit-scrollbar        { width: 4px; }
+.scroll-area::-webkit-scrollbar-track  { background: transparent; }
+.scroll-area::-webkit-scrollbar-thumb  { background: rgba(201,168,51,0.2); border-radius: 2px; }
+
+/* ── Fade-in utility ── */
+.fade-up { animation: fadeUp 0.4s ease-out both; }
