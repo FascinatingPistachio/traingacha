@@ -100,8 +100,9 @@ function ThomasBanner({ character, size }) {
   };
 
   const sz      = SZ[size];
-  const stripH  = size === 'sm' ? 26 : size === 'md' ? 32 : 38;
-  const circleD = size === 'sm' ? 38 : size === 'md' ? 48 : 58;
+  // Keep banner thin so it doesn't eat the train photo
+  const stripH  = size === 'sm' ? 20 : size === 'md' ? 24 : 28;
+  const circleD = size === 'sm' ? 28 : size === 'md' ? 34 : 40;
   const col     = character.color ?? '#1d6fc4';
 
   return (

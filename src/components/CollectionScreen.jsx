@@ -117,12 +117,12 @@ export default function CollectionScreen({ collection, favourites = new Set(), o
 
       {/* Grid */}
       {entries.length === 0 ? <EmptyState /> : (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(130px,1fr))', gap:10 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:10 }}>
           {filtered.map(card => (
             <div key={card.id} style={{ display:'flex', justifyContent:'center' }}>
               <RailCard
                 card={card}
-                size="sm"
+                size="md"
                 count={card.count}
                 isFav={favourites.has(card.id)}
                 onFav={() => handleFav(card)}

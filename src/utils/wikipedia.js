@@ -52,9 +52,6 @@ export const PITY_POOL = {
   low:  ALL_CATEGORIES,
 };
 
-// ── Categories where Thomas characters are plausible ─────────────────────────
-// Only fetch wikitext for articles from these categories — avoids wasting
-// time on ICE trains or Shinkansen which will never have Thomas connections.
 const THOMAS_CANDIDATE_CATEGORIES = new Set([
   'Steam_locomotives_of_the_United_Kingdom',
   'Steam_locomotives_of_the_United_States',
@@ -62,18 +59,19 @@ const THOMAS_CANDIDATE_CATEGORIES = new Set([
   'Named_passenger_trains_of_the_United_Kingdom',
   'Steam_locomotives_of_Germany',
   'Narrow-gauge_locomotives',
+  'Diesel_locomotives_of_the_United_Kingdom',
 ]);
 
-// ── Caches ────────────────────────────────────────────────────────────────────
 const categoryMembersCache = new Map();
 const articleCache         = new Map();
 const viewsCache           = new Map();
-const characterCache       = new Map(); // title → character | null
+const characterCache       = new Map();
 const wikitextCache        = new Map();
-const sessionSeen          = new Set();
+const sessionSeen          = new Set(); // raw titles seen this session
 
-// Track which category each title came from
-const titleCategoryMap     = new Map();
+function makeId(title) {
+  return title.toLowerCase().replace(/\W+/g, '_');
+}
 
 function getSeenPersisted() {
   try { return new Set(JSON.parse(sessionStorage.getItem('rg_seen') ?? '[]')); }
@@ -82,21 +80,12 @@ function getSeenPersisted() {
 function addSeenPersisted(title) {
   try {
     const s = getSeenPersisted(); s.add(title);
-    sessionStorage.setItem('rg_seen', JSON.stringify([...s].slice(-200)));
+    sessionStorage.setItem('rg_seen', JSON.stringify([...s].slice(-300)));
   } catch {}
 }
 
 function isFictional(title) {
   return FICTIONAL_TITLE_PATTERNS.some(p => p.test(title));
-}
-
-function isThomosCandidate(title) {
-  // If we know the category it came from, only fetch wikitext for candidates
-  const cat = titleCategoryMap.get(title);
-  if (cat) return THOMAS_CANDIDATE_CATEGORIES.has(cat);
-  // If category unknown, check the title — UK steam and heritage locos are likely candidates
-  return /class|railway|steam|loco|engine/i.test(title) &&
-         /GWR|LMS|LNER|GER|GNR|BR|LBSCR|Midland|Furness|Talyllyn|heritage/i.test(title);
 }
 
 export async function getCategoryMembers(category) {
@@ -112,8 +101,6 @@ export async function getCategoryMembers(category) {
     const members = (data.query?.categorymembers ?? [])
       .map(m => m.title)
       .filter(t => !isFictional(t));
-    // Record which category each title came from
-    members.forEach(t => { if (!titleCategoryMap.has(t)) titleCategoryMap.set(t, category); });
     categoryMembersCache.set(category, members);
     return members;
   } catch {
@@ -150,20 +137,19 @@ export function rarityFromViews(views) {
   return 'C';
 }
 
-// Wikitext fetch with 4-second timeout to avoid blocking pack opens
-async function fetchWikitextWithTimeout(title, timeoutMs = 4000) {
+async function fetchWikitextWithTimeout(title, ms = 4000) {
   if (wikitextCache.has(title)) return wikitextCache.get(title);
   try {
-    const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), timeoutMs);
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), ms);
     const params = new URLSearchParams({
       action:'query', titles:title, prop:'revisions',
       rvprop:'content', rvslots:'main', format:'json', origin:'*',
     });
-    const res  = await fetch(`https://en.wikipedia.org/w/api.php?${params}`, { signal: controller.signal });
+    const res  = await fetch(`https://en.wikipedia.org/w/api.php?${params}`, { signal:ctrl.signal });
     clearTimeout(tid);
     if (!res.ok) throw new Error();
-    const data = await res.json();
+    const data  = await res.json();
     const pages = data.query?.pages ?? {};
     const page  = Object.values(pages)[0];
     const text  = (page?.revisions?.[0]?.slots?.main?.['*'] ?? '').slice(0, 8000);
@@ -175,32 +161,14 @@ async function fetchWikitextWithTimeout(title, timeoutMs = 4000) {
   }
 }
 
-/**
- * Character detection — two sources, fast path first.
- * Wikitext is only fetched for likely Thomas-candidate articles.
- */
 async function detectCharacter(canonicalTitle, fromCategory) {
   if (characterCache.has(canonicalTitle)) return characterCache.get(canonicalTitle);
-
-  // Fast path 1: static lookup (instant)
   const staticChar = STATIC_CHARACTERS[canonicalTitle] ?? null;
-  if (staticChar) {
-    characterCache.set(canonicalTitle, staticChar);
-    return staticChar;
-  }
-
-  // Fast path 2: only fetch wikitext if this is a plausible Thomas candidate
+  if (staticChar) { characterCache.set(canonicalTitle, staticChar); return staticChar; }
   const candidate = fromCategory
     ? THOMAS_CANDIDATE_CATEGORIES.has(fromCategory)
-    : isThomosCandidate(canonicalTitle);
-
-  if (!candidate) {
-    // Not a candidate (e.g. ICE 3, Shinkansen, Class 66 diesel) — skip wikitext fetch
-    characterCache.set(canonicalTitle, null);
-    return null;
-  }
-
-  // Fetch wikitext with timeout — won't block if Wikipedia is slow
+    : /GWR|LMS|LNER|GER|GNR|LBSCR|Midland|Furness|Talyllyn|heritage/i.test(canonicalTitle);
+  if (!candidate) { characterCache.set(canonicalTitle, null); return null; }
   const wikitext = await fetchWikitextWithTimeout(canonicalTitle);
   const parsed   = parseCharacterFromWikitext(wikitext);
   characterCache.set(canonicalTitle, parsed);
@@ -210,76 +178,72 @@ async function detectCharacter(canonicalTitle, fromCategory) {
 export async function fetchArticleSummary(title) {
   if (isFictional(title)) return null;
   if (articleCache.has(title)) return articleCache.get(title);
-
-  // Try the title directly (titles in STATIC_CHARACTERS are already verified)
-  const titlesToTry = [title];
-
-  for (const tryTitle of titlesToTry) {
-    const encoded = encodeURIComponent(tryTitle.replace(/ /g, '_'));
-    let res;
-    try {
-      res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`);
-    } catch { continue; }
-    if (!res.ok) continue; // try next fallback
-
-    try {
+  try {
+    const encoded = encodeURIComponent(title.replace(/ /g, '_'));
+    const res     = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`);
+    if (!res.ok) return null;
     const d = await res.json();
-    if (!d.thumbnail?.source)       return null;
+    if (!d.thumbnail?.source) return null;
     if (isFictional(d.title ?? '')) return null;
-
     const canonicalTitle = d.title ?? title;
     if (articleCache.has(canonicalTitle)) {
       const cached = articleCache.get(canonicalTitle);
       articleCache.set(title, cached);
       return cached;
     }
-
+    // Short 1-sentence extract for card display
     const extract = (d.extract ?? '')
       .replace(/\([^)]*\)/g, '')
       .split(/\.(?:\s+|$)/)
       .map(s => s.trim()).filter(Boolean)
-      .slice(0, 2).join('. ').trim();
-
+      .slice(0, 1).join('. ').trim();
     const result = {
-      id:      canonicalTitle.toLowerCase().replace(/\W+/g, '_'),
+      id:      makeId(canonicalTitle),
       title:   canonicalTitle,
       extract: extract ? extract + '.' : '',
       image:   d.thumbnail.source.replace(/\/\d+px-/, '/400px-'),
       imageHD: d.thumbnail.source.replace(/\/\d+px-/, '/800px-'),
       url:     d.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encoded}`,
     };
-
-      articleCache.set(title, result);
-      articleCache.set(canonicalTitle, result);
-      return result;
-    } catch { continue; } // JSON parse failed etc, try next fallback
-  }
-  return null; // all titles failed
+    articleCache.set(title, result);
+    articleCache.set(canonicalTitle, result);
+    return result;
+  } catch { return null; }
 }
 
-export async function fetchTrainCard(categoryPool, maxAttempts = 24, ownedIds = new Set()) {
+export async function fetchTrainCard(categoryPool, maxAttempts = 28, ownedIds = new Set()) {
   const persistedSeen = getSeenPersisted();
+
+  // Build a comprehensive exclude set: owned IDs + seen IDs (both raw and id-normalised)
+  const isExcluded = (rawTitle) => {
+    const id = makeId(rawTitle);
+    return sessionSeen.has(rawTitle)
+      || sessionSeen.has(id)
+      || persistedSeen.has(rawTitle)
+      || persistedSeen.has(id)
+      || ownedIds.has(id)
+      || ownedIds.has(rawTitle);
+  };
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const category = categoryPool[Math.floor(Math.random() * categoryPool.length)];
     const members  = await getCategoryMembers(category);
     if (!members.length) continue;
 
-    // Exclude: session-seen, persisted-seen, AND cards already in collection
-    const isOwned  = (t) => ownedIds.has(t.toLowerCase().replace(/\W+/g, '_'));
-    const unseen   = members.filter(t => !sessionSeen.has(t) && !persistedSeen.has(t) && !isOwned(t));
-    const pool     = unseen.length ? unseen : members.filter(t => !sessionSeen.has(t) && !isOwned(t));
-    const fallback = pool.length ? pool : members.filter(t => !isOwned(t));
-    const finalPool = fallback.length ? fallback : members; // last resort: anything
-    const title     = finalPool[Math.floor(Math.random() * finalPool.length)];
+    // Priority: not excluded at all → not owned → anything
+    const notExcluded = members.filter(t => !isExcluded(t));
+    const notOwned    = members.filter(t => !ownedIds.has(makeId(t)) && !ownedIds.has(t));
+    const finalPool   = notExcluded.length ? notExcluded : notOwned.length ? notOwned : members;
+    const title       = finalPool[Math.floor(Math.random() * finalPool.length)];
 
     if (isFictional(title)) continue;
 
     const article = await fetchArticleSummary(title);
     if (!article) continue;
 
-    // Run views + character detection in parallel
-    // Character detection skips wikitext fetch for non-Thomas-candidate categories
+    // Check again after canonical resolution — prevents subtle duplicates
+    if (ownedIds.has(article.id) || ownedIds.has(makeId(article.title))) continue;
+
     const [views, character] = await Promise.all([
       getMonthlyPageViews(title),
       detectCharacter(article.title, category),
@@ -290,31 +254,28 @@ export async function fetchTrainCard(categoryPool, maxAttempts = 24, ownedIds = 
 
     sessionSeen.add(title);
     sessionSeen.add(article.title);
+    sessionSeen.add(article.id);
     addSeenPersisted(title);
     return { ...article, rarity, views, character: character ?? null };
   }
   return null;
 }
 
-// Thomas cheat — uses verified static mappings only, no wikitext fetching
 export async function fetchThomasCard(ownedIds = new Set()) {
   try { sessionStorage.removeItem('rg_seen'); } catch {}
-
-  const isOwned = (t) => ownedIds.has(t.toLowerCase().replace(/\W+/g, '_'));
-
+  const isOwned = (t) => ownedIds.has(makeId(t)) || ownedIds.has(t);
   const entries = Object.entries(STATIC_CHARACTERS)
     .filter(([, v]) => v.show === 'Thomas & Friends')
-    .filter(([t]) => !isOwned(t))  // skip already-owned Thomas locos
+    .filter(([t]) => !isOwned(t))
     .sort(() => Math.random() - 0.5);
-
-  // Fallback to all Thomas locos if all are owned
-  const pool = entries.length ? entries
+  const pool = entries.length
+    ? entries
     : Object.entries(STATIC_CHARACTERS).filter(([, v]) => v.show === 'Thomas & Friends');
-
   for (const [locoTitle, char] of pool) {
     if (isFictional(locoTitle)) continue;
     const article = await fetchArticleSummary(locoTitle);
     if (!article) continue;
+    if (isOwned(article.id)) continue;
     const views   = await getMonthlyPageViews(locoTitle);
     let   rarity  = rarityFromViews(views);
     rarity        = applyCharacterRarityBoost(rarity, char);
