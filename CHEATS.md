@@ -1,42 +1,25 @@
-# Rail Gacha — Dev Console Cheat Commands
-# Open browser DevTools (F12) → Console tab, paste and hit Enter.
+# Rail Gacha — Console Cheats
 
-## ── Give yourself tickets ─────────────────────────────────────────────────
-# 999,999 tickets
-const s=JSON.parse(localStorage.getItem('railgacha_v4'));s.tickets=999999;localStorage.setItem('railgacha_v4',JSON.stringify(s));location.reload();
+Open browser DevTools (F12) → Console tab.
+The `rg` object is available as soon as the page loads.
+Type `rg.help()` to see all commands.
 
-# Add 500 tickets (stackable)
-const s=JSON.parse(localStorage.getItem('railgacha_v4'));s.tickets+=500;localStorage.setItem('railgacha_v4',JSON.stringify(s));location.reload();
+## Commands
 
-## ── Reset daily bonus so you can claim again now ──────────────────────────
-const s=JSON.parse(localStorage.getItem('railgacha_v4'));s.dailyClaimedDate=null;localStorage.setItem('railgacha_v4',JSON.stringify(s));location.reload();
+| Command                 | What it does                                      |
+|-------------------------|---------------------------------------------------|
+| `rg.thomas()`           | Force next pack to include a Thomas character     |
+| `rg.legendary()`        | Force next pack to be all Legendaries             |
+| `rg.epic()`             | Force next pack to be all Epics                   |
+| `rg.tickets(500)`       | Add 500 tickets (pass any number)                 |
+| `rg.maxtickets()`       | Set tickets to 999,999                            |
+| `rg.daily()`            | Reset daily bonus so you can claim again now      |
+| `rg.pity(49)`           | Set pity counter (49 = near-guaranteed Legendary) |
+| `rg.clearads()`         | Reset ad cooldown                                 |
+| `rg.clearcollection()`  | Wipe collection, keep tickets                     |
+| `rg.save()`             | Print current save state as a table               |
+| `rg.reset()`            | Wipe everything and start fresh                   |
+| `rg.help()`             | Print this list in the console                    |
 
-## ── Max out timer charges (collect 3 charges worth of tickets now) ────────
-const s=JSON.parse(localStorage.getItem('railgacha_v4'));s.timerCharges=3;s.timerLastCollect=Date.now();localStorage.setItem('railgacha_v4',JSON.stringify(s));location.reload();
-
-## ── Reset ad cooldown so you can watch another ad immediately ─────────────
-const s=JSON.parse(localStorage.getItem('railgacha_v4'));s.lastAdWatch=null;localStorage.setItem('railgacha_v4',JSON.stringify(s));location.reload();
-
-## ── Force next pack to contain a Thomas & Friends character ──────────────
-# Injects a cheat flag that the gacha system checks for one pack only
-sessionStorage.setItem('rg_force_thomas','1');
-# Then open a pack — the flag is cleared automatically after use.
-
-## ── Force next pack to be all Legendaries ────────────────────────────────
-sessionStorage.setItem('rg_force_legendary','1');
-# Open a pack — cleared automatically.
-
-## ── Force next pack to be all Epics ─────────────────────────────────────
-sessionStorage.setItem('rg_force_epic','1');
-
-## ── Set pity counter to 49 (next pack near-guaranteed Legendary) ─────────
-const s=JSON.parse(localStorage.getItem('railgacha_v4'));s.pity=49;localStorage.setItem('railgacha_v4',JSON.stringify(s));location.reload();
-
-## ── Clear your entire collection (keep tickets) ──────────────────────────
-const s=JSON.parse(localStorage.getItem('railgacha_v4'));s.collection={};s.totalPulls=0;localStorage.setItem('railgacha_v4',JSON.stringify(s));location.reload();
-
-## ── Print your current save state to console ─────────────────────────────
-console.table(JSON.parse(localStorage.getItem('railgacha_v4')));
-
-## ── Wipe everything and start fresh ──────────────────────────────────────
-localStorage.removeItem('railgacha_v4');location.reload();
+All commands that modify save data reload the page automatically after ~600ms.
+Pack cheat flags (`thomas`, `legendary`, `epic`) are cleared after one pack open.

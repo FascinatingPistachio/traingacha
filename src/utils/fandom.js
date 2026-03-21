@@ -139,6 +139,19 @@ async function fetchViaImageList(name) {
   return null;
 }
 
+const FANDOM_RANTS = [
+  `🤬 stupid proprietary fandom bullsh*t — can't get ${'{n}'} image`,
+  `😤 dumb fandom. blocking image for ${'{n}'} AGAIN. i just want ttte character pics`,
+  `🚂💢 fandom said no to ${'{n}'}. hate that website so much`,
+  `🤦 fandom CORS nonsense for ${'{n}'}. it's just a train image!!`,
+  `😡 ${'{n}'} image blocked by fandom's garbage API. dumb fandom`,
+  `💀 fandom really said "no images for you" re: ${'{n}'}. unbelievable`,
+];
+function fandomRant(name) {
+  const msg = FANDOM_RANTS[Math.floor(Math.random() * FANDOM_RANTS.length)];
+  console.warn('%c' + msg.replace('{n}', name), 'color:#ff6b35;font-weight:bold');
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 // skipLocal=true forces the API path (used when a local file 404s at runtime)
 export async function fetchFandomCharacterImage(characterName, skipLocal = false) {
@@ -153,6 +166,8 @@ export async function fetchFandomCharacterImage(characterName, skipLocal = false
   // Priority 3: Fandom API — pageimages first, image list fallback
   let url = await fetchViaPageImages(characterName);
   if (!url) url = await fetchViaImageList(characterName);
+
+  if (!url) fandomRant(characterName);
 
   cache[characterName] = { url, ts: Date.now() };
   saveCache(cache);
