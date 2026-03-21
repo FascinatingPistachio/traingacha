@@ -1,5 +1,5 @@
 import { VIEW_THRESHOLDS, FICTIONAL_TITLE_PATTERNS } from '../constants.js';
-import { applyCharacterRarityBoost, STATIC_CHARACTERS, parseCharacterFromWikitext } from './characters.js';
+import { applyCharacterRarityBoost, STATIC_CHARACTERS, parseCharacterFromWikitext, TITLE_FALLBACKS } from './characters.js';
 
 export const CATEGORIES = {
   famous: [
@@ -210,10 +210,19 @@ async function detectCharacter(canonicalTitle, fromCategory) {
 export async function fetchArticleSummary(title) {
   if (isFictional(title)) return null;
   if (articleCache.has(title)) return articleCache.get(title);
-  try {
-    const encoded = encodeURIComponent(title.replace(/ /g, '_'));
-    const res     = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`);
-    if (!res.ok) return null;
+
+  // Try the primary title, then any fallbacks if it 404s
+  const titlesToTry = [title, ...(TITLE_FALLBACKS[title] ?? [])];
+
+  for (const tryTitle of titlesToTry) {
+    const encoded = encodeURIComponent(tryTitle.replace(/ /g, '_'));
+    let res;
+    try {
+      res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`);
+    } catch { continue; }
+    if (!res.ok) continue; // try next fallback
+
+    try {
     const d = await res.json();
     if (!d.thumbnail?.source)       return null;
     if (isFictional(d.title ?? '')) return null;
@@ -240,10 +249,12 @@ export async function fetchArticleSummary(title) {
       url:     d.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encoded}`,
     };
 
-    articleCache.set(title, result);
-    articleCache.set(canonicalTitle, result);
-    return result;
-  } catch { return null; }
+      articleCache.set(title, result);
+      articleCache.set(canonicalTitle, result);
+      return result;
+    } catch { continue; } // JSON parse failed etc, try next fallback
+  }
+  return null; // all titles failed
 }
 
 export async function fetchTrainCard(categoryPool, maxAttempts = 16) {

@@ -8,6 +8,7 @@ import CollectionScreen from './components/CollectionScreen.jsx';
 import AccountScreen    from './components/AccountScreen.jsx';
 import BottomNav        from './components/BottomNav.jsx';
 import Toast            from './components/Toast.jsx';
+import AdScreen         from './components/AdScreen.jsx';
 import Footer           from './components/Footer.jsx';
 
 import { drawPack, updatePity } from './utils/gacha.js';
@@ -15,6 +16,7 @@ import { loadSave, writeSave, deleteSave, makeFreshSave } from './utils/storage.
 import { preloadCardImages } from './utils/preload.js';
 import { collectTimerCharges } from './utils/tickets.js';
 import { toggleMute, isMuted, soundClick, soundDailyClaim } from './utils/sounds.js';
+import { prewarmFandomCache } from './utils/fandom.js';
 import { PACK_COST, DAILY_BONUS, TIMER_TICKETS, AD_TICKETS } from './constants.js';
 
 function TopBar({ tickets }) {
@@ -55,6 +57,7 @@ function LoadingScreen() {
 
 export default function App() {
   const [save,    setSave]    = useState(null);
+  const [showAd,  setShowAd]  = useState(false);
   const [screen,  setScreen]  = useState('loading');
   const [cardsPromise, setCardsPromise] = useState(null);
   const [busy,    setBusy]    = useState(false);
@@ -164,7 +167,12 @@ export default function App() {
     notify(`+${gained} ticket${gained>1?'s':''} collected!`, 'success');
   };
 
-  const handleWatchAd = () => {
+  const handleShowAd = () => {
+    setShowAd(true);
+  };
+
+  const handleAdComplete = () => {
+    setShowAd(false);
     updateSave({ tickets: save.tickets + AD_TICKETS, lastAdWatch: Date.now() });
     notify(`+${AD_TICKETS} tickets! Thanks for watching.`, 'success');
   };
@@ -191,6 +199,7 @@ export default function App() {
         <TopBar tickets={save.tickets} />
         <OpeningScreen cardsPromise={cardsPromise} onDone={handleOpeningDone} />
         <BottomNav screen="opening" setScreen={handleSetScreen} />
+        {showAd && <AdScreen onComplete={handleAdComplete} onSkip={handleAdComplete} />}
       </div>
     );
   }
@@ -201,12 +210,14 @@ export default function App() {
       <TopBar tickets={save.tickets} />
       <div className="scroll-area" style={{ height:'calc(100vh - 44px - 56px)', overflowY:'auto' }}>
         {screen==='home'       && <HomeScreen       save={save} onDaily={handleDaily} onPack={handlePack} goShop={()=>handleSetScreen('shop')} />}
-        {screen==='shop'       && <ShopScreen       save={save} onPack={handlePack} onClaimCharges={handleClaimCharges} onWatchAd={handleWatchAd} />}
+        {screen==='shop'       && <ShopScreen       save={save} onPack={handlePack} onClaimCharges={handleClaimCharges} onWatchAd={handleShowAd} />}
         {screen==='collection' && <CollectionScreen collection={save.collection} favourites={favSet} onToggleFav={handleToggleFav} />}
         {screen==='account'    && <AccountScreen    save={save} onReset={handleReset} />}
         <Footer />
       </div>
       <BottomNav screen={screen} setScreen={handleSetScreen} />
+      {/* Ad screen rendered at app root so position:fixed covers full viewport */}
+      {showAd && <AdScreen onComplete={handleAdComplete} onSkip={handleAdComplete} />}
     </div>
   );
 }

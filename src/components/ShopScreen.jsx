@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RARITY, PACK_COST, VIEW_THRESHOLDS, TIMER_TICKETS, TIMER_MAX_CHARGES, TIMER_INTERVAL_MS, AD_TICKETS, AD_COOLDOWN_MS } from '../constants.js';
 import { msUntilNextCharge, fmtMs, adOnCooldown, msUntilAdReady } from '../utils/tickets.js';
-import AdScreen from './AdScreen.jsx';
 
 function TimerBar({ pct, color }) {
   return (
@@ -24,8 +23,6 @@ function ChargeIcon({ filled }) {
 
 export default function ShopScreen({ save, onPack, onClaimCharges, onWatchAd }) {
   const [, setTick]  = useState(0);
-  const [showAd, setShowAd] = useState(false);
-
   useEffect(() => {
     const id = setInterval(() => setTick(n => n + 1), 1000);
     return () => clearInterval(id);
@@ -37,9 +34,6 @@ export default function ShopScreen({ save, onPack, onClaimCharges, onWatchAd }) 
   const nextPct   = ((TIMER_INTERVAL_MS - msNext) / TIMER_INTERVAL_MS) * 100;
   const cooldown  = adOnCooldown(save);
   const msAd      = msUntilAdReady(save);
-
-  const handleAdDone = () => { setShowAd(false); onWatchAd(); };
-  if (showAd) return <AdScreen onComplete={handleAdDone} onSkip={handleAdDone} />;
 
   const RARITY_INFO = [
     { r:'M', label:`< ${VIEW_THRESHOLDS.MYTHIC_MAX} views/month`, note:'~1% chance — rarer than Legendary' },
@@ -112,7 +106,7 @@ export default function ShopScreen({ save, onPack, onClaimCharges, onWatchAd }) 
             <span style={{ fontSize:9, color:'#2a4060', fontFamily:'monospace', whiteSpace:'nowrap', minWidth:36 }}>{fmtMs(msAd)}</span>
           </div>
         )}
-        <button onClick={!cooldown ? () => setShowAd(true) : undefined} style={{
+        <button onClick={!cooldown ? () => onWatchAd() : undefined} style={{
           width:'100%', padding:'10px',
           background: !cooldown ? 'linear-gradient(135deg,#0f2240,#09162d)' : '#0a1420',
           border:`1px solid ${!cooldown ? 'rgba(79,168,232,0.45)' : 'rgba(255,255,255,0.06)'}`,

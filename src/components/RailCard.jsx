@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { RARITY } from '../constants.js';
-import CharacterBadge from './CharacterBadge.jsx';
+import { fetchFandomCharacterImage } from '../utils/fandom.js';
 import '../styles/cards.css';
 
 const SZ = {
@@ -17,22 +17,19 @@ const FRAME = {
   M: { top:'#020205', bot:'#010103' },
 };
 const BADGE_BG = {
-  C:'rgba(10,20,30,0.90)',  R:'rgba(4,14,28,0.90)',
-  E:'rgba(18,6,32,0.90)',   L:'rgba(22,10,0,0.90)',
-  M:'rgba(0,0,8,0.95)',
+  C:'rgba(10,20,30,0.90)', R:'rgba(4,14,28,0.90)',
+  E:'rgba(18,6,32,0.90)',  L:'rgba(22,10,0,0.90)', M:'rgba(0,0,8,0.95)',
 };
 
 // ── Image with cached-image fix ───────────────────────────────────────────────
 function CardImage({ src, alt }) {
   const [status, setStatus] = useState('loading');
   const ref = useRef(null);
-
   useEffect(() => { setStatus('loading'); }, [src]);
   useEffect(() => {
     const img = ref.current;
     if (img?.complete) setStatus(img.naturalWidth > 0 ? 'loaded' : 'error');
   }, [src]);
-
   return (
     <div style={{ width:'100%', height:'100%', position:'relative', overflow:'hidden', background:'rgba(0,0,0,0.4)' }}>
       {status === 'loading' && (
@@ -61,6 +58,104 @@ function CardImage({ src, alt }) {
   );
 }
 
+// ── Thomas-style character banner ─────────────────────────────────────────────
+// Matches the reference image: coloured banner with character portrait circle
+// overlapping the photo/banner boundary, show logo text, character name.
+function ThomasBanner({ character, size, imgH }) {
+  const [charImg, setCharImg]   = useState(null);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchFandomCharacterImage(character.character)
+      .then(url => setCharImg(url))
+      .catch(() => {});
+  }, [character.character]);
+
+  const bannerH   = size === 'sm' ? 28 : size === 'md' ? 34 : 40;
+  const circleD   = size === 'sm' ? 40 : size === 'md' ? 52 : 62;
+  const charColor = character.color ?? '#2563eb';
+
+  return (
+    // Banner sits at the bottom of the image area, overlapping into info section
+    <div style={{
+      position: 'absolute',
+      bottom: 0, left: 0, right: 0,
+      height: bannerH,
+      background: charColor,
+      zIndex: 8,
+      display: 'flex',
+      alignItems: 'center',
+      paddingLeft: circleD * 0.6 + 6,
+      paddingRight: 8,
+      boxShadow: `0 -2px 12px rgba(0,0,0,0.4)`,
+    }}>
+      {/* Thomas & Friends logo text */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: size === 'sm' ? 5.5 : 7,
+          color: 'rgba(255,255,255,0.8)',
+          fontFamily: 'monospace',
+          fontWeight: 700,
+          letterSpacing: '.12em',
+          textTransform: 'uppercase',
+          lineHeight: 1,
+          marginBottom: 2,
+        }}>
+          {character.show}
+        </div>
+        <div style={{
+          fontSize: size === 'sm' ? 8 : 10,
+          color: '#ffffff',
+          fontFamily: 'Georgia, serif',
+          fontWeight: 700,
+          lineHeight: 1,
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis',
+        }}>
+          {character.character}
+        </div>
+      </div>
+
+      {/* Character portrait circle — overlaps photo/banner boundary */}
+      <div style={{
+        position: 'absolute',
+        left: 6,
+        // Shift up so circle overlaps the photo above the banner
+        bottom: bannerH * 0.3,
+        width: circleD,
+        height: circleD,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        border: `2.5px solid rgba(255,255,255,0.9)`,
+        background: charColor,
+        boxShadow: `0 3px 14px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.3)`,
+        zIndex: 9,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        {charImg ? (
+          <img
+            src={charImg}
+            alt={character.character}
+            onLoad={() => setImgLoaded(true)}
+            style={{ width:'100%', height:'100%', objectFit:'cover', opacity:imgLoaded?1:0, transition:'opacity 0.3s' }}
+          />
+        ) : (
+          // Fallback: coloured circle with initial
+          <span style={{ fontSize: circleD * 0.35, fontWeight:800, color:'#fff', fontFamily:'monospace',
+            textShadow:'0 1px 3px rgba(0,0,0,0.4)' }}>
+            {character.character.charAt(0)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main RailCard ─────────────────────────────────────────────────────────────
 export default function RailCard({
   card, size='md', count=0, dimmed=false, revealed=false, onClick=null, isFav=false, onFav=null,
 }) {
@@ -71,6 +166,7 @@ export default function RailCard({
   const isM   = card.rarity === 'M';
   const star  = STARS[card.rarity] ?? 1;
   const { top, bot } = FRAME[card.rarity] ?? FRAME.C;
+  const hasBanner = !!(card.character && card.character.show === 'Thomas & Friends');
 
   const classes = ['tc', `r-${card.rarity}`, revealed?'revealed':'', onClick?'clickable':''].filter(Boolean).join(' ');
 
@@ -80,17 +176,15 @@ export default function RailCard({
       background:`linear-gradient(175deg, ${top}, ${bot})`,
       border:`2px solid ${dimmed?'rgba(255,255,255,0.05)':rs.border}`,
       opacity:dimmed?0.17:1,
-      // Mythic box-shadow is handled by CSS animation; others are static
       boxShadow: isM
         ? undefined
         : dimmed ? 'none'
         : `0 0 18px ${rs.glow}, 0 4px 22px rgba(0,0,0,0.65), inset 0 0 0 1px rgba(255,255,255,0.04)`,
     }}>
-      {/* Foil overlays */}
-      {(isL || isE || isM) && !dimmed && <div className={`tc-foil tc-foil-${card.rarity}`} />}
+      {(isL||isE||isM) && !dimmed && <div className={`tc-foil tc-foil-${card.rarity}`} />}
       {isM && !dimmed && <div className="tc-scanlines" />}
 
-      {/* ── Photo ── */}
+      {/* ── Photo section ── */}
       <div style={{ height:sz.img, flexShrink:0, position:'relative', borderBottom:`2px solid ${rs.border}`, overflow:'hidden' }}>
         <CardImage src={card.image} alt={card.title} />
 
@@ -102,21 +196,17 @@ export default function RailCard({
           display:'flex', alignItems:'center', paddingLeft:6, gap:4,
         }}>
           {isM && <span style={{ fontSize:sz.badge-0.5, color:rs.color }}>✦</span>}
-          <span style={{
-            fontSize:sz.badge, color:rs.color, fontFamily:'monospace', fontWeight:700, letterSpacing:'.1em',
-            textShadow:isM?`0 0 8px ${rs.glow}, 0 0 16px ${rs.glow}`:`0 0 5px ${rs.glow}`,
-          }}>
+          <span style={{ fontSize:sz.badge, color:rs.color, fontFamily:'monospace', fontWeight:700, letterSpacing:'.1em',
+            textShadow:isM?`0 0 8px ${rs.glow}`:`0 0 5px ${rs.glow}` }}>
             {rs.name.toUpperCase()}
           </span>
-          {isM && (
-            <span style={{ fontSize:sz.badge-1.5, color:'rgba(140,160,255,0.5)', fontFamily:'monospace' }}>
-              GHOST TRAIN
-            </span>
-          )}
+          {isM && <span style={{ fontSize:sz.badge-1.5, color:'rgba(140,160,255,0.5)', fontFamily:'monospace' }}>GHOST TRAIN</span>}
         </div>
 
-        {/* Bottom photo fade into info area */}
-        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:28, background:`linear-gradient(transparent, ${bot})`, zIndex:4 }} />
+        {/* Bottom photo fade */}
+        {!hasBanner && (
+          <div style={{ position:'absolute', bottom:0, left:0, right:0, height:28, background:`linear-gradient(transparent,${bot})`, zIndex:4 }} />
+        )}
 
         {/* Count */}
         {count > 1 && (
@@ -127,13 +217,33 @@ export default function RailCard({
           </div>
         )}
 
-        {/* Character badge — shows which fictional character this REAL loco inspired */}
-        {card.character && !dimmed && <CharacterBadge character={card.character} size={size} />}
+        {/* Thomas-style blue banner + character portrait */}
+        {hasBanner && !dimmed && (
+          <ThomasBanner character={card.character} size={size} imgH={sz.img} />
+        )}
 
-        {/* Favourite button */}
+        {/* Non-Thomas character badge (small circle, top right) */}
+        {card.character && !hasBanner && !dimmed && (
+          <div style={{ position:'absolute', top:22, right:4, zIndex:7,
+            display:'flex', flexDirection:'column', alignItems:'center', gap:2,
+            filter:'drop-shadow(0 2px 6px rgba(0,0,0,0.7))' }}>
+            <div style={{ width:size==='sm'?22:28, height:size==='sm'?22:28, borderRadius:'50%',
+              background:card.character.color??'#4b5563',
+              border:'2px solid rgba(255,255,255,0.32)',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              fontSize:size==='sm'?11:14, boxShadow:'0 2px 10px rgba(0,0,0,0.7)' }}>
+              <span style={{ fontSize:size==='sm'?8:10, fontWeight:800, color:'#fff', fontFamily:'monospace' }}>
+                {card.character.character.charAt(0)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Favourite */}
         {onFav && (
           <button onClick={e=>{e.stopPropagation();onFav();}} style={{
-            position:'absolute', bottom:5, right:5, zIndex:7,
+            position:'absolute', bottom: hasBanner ? (size==='sm'?32:size==='md'?38:44) : 5,
+            right:5, zIndex:10,
             background:'rgba(0,0,0,0.72)',
             border:`1px solid ${isFav?'rgba(255,100,100,0.65)':'rgba(255,255,255,0.15)'}`,
             borderRadius:'50%', width:20, height:20, cursor:'pointer',
@@ -146,17 +256,20 @@ export default function RailCard({
         )}
       </div>
 
-      {/* ── Info ── */}
+      {/* ── Info section ── */}
       <div style={{
         height:sz.infoH, padding:sz.bp, display:'flex', flexDirection:'column', gap:3,
-        background:`linear-gradient(to bottom, ${bot}, #030610)`,
+        background:`linear-gradient(to bottom,${bot},#030610)`,
         position:'relative', overflow:'hidden',
+        // If Thomas banner, add top padding so text doesn't hide behind portrait
+        paddingTop: hasBanner
+          ? (size==='sm' ? '10px' : size==='md' ? '12px' : '14px')
+          : sz.bp.split(' ')[0],
       }}>
-        {/* Top separator */}
         <div style={{ position:'absolute', top:0, left:8, right:8, height:1,
-          background:`linear-gradient(to right, transparent, ${rs.border}, transparent)` }} />
+          background:`linear-gradient(to right,transparent,${rs.border},transparent)` }} />
 
-        {/* Title — fixed 2-line height */}
+        {/* Title */}
         <div style={{
           fontSize:sz.name, fontWeight:700, color:'#f0e8d8', lineHeight:1.2, fontFamily:'Georgia,serif',
           height:sz.name*1.2*2+2, overflow:'hidden',
@@ -193,14 +306,19 @@ export default function RailCard({
           </div>
         )}
 
-        {/* Character note */}
-        {card.character && (
-          <div style={{
-            flexShrink:0, fontSize:sz.badge-0.5, color:'rgba(200,160,255,0.62)',
-            fontFamily:'monospace', lineHeight:1.3,
-            overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis',
-          }}>
-            {card.character.emoji} {card.character.note}
+        {/* Character note — only for non-Thomas characters */}
+        {card.character && !hasBanner && (
+          <div style={{ flexShrink:0, fontSize:sz.badge-0.5, color:'rgba(200,160,255,0.62)',
+            fontFamily:'monospace', lineHeight:1.3, overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>
+            {card.character.note}
+          </div>
+        )}
+
+        {/* Thomas character note in info area */}
+        {hasBanner && size !== 'sm' && (
+          <div style={{ flexShrink:0, fontSize:sz.badge-0.5, color:`${card.character.color}88`,
+            fontFamily:'monospace', lineHeight:1.3, overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>
+            {card.character.note}
           </div>
         )}
       </div>
