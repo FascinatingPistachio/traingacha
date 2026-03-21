@@ -1,5 +1,5 @@
 import { VIEW_THRESHOLDS, FICTIONAL_TITLE_PATTERNS } from '../constants.js';
-import { applyCharacterRarityBoost, STATIC_CHARACTERS, parseCharacterFromWikitext, TITLE_FALLBACKS } from './characters.js';
+import { applyCharacterRarityBoost, STATIC_CHARACTERS, parseCharacterFromWikitext } from './characters.js';
 
 export const CATEGORIES = {
   famous: [
@@ -211,8 +211,8 @@ export async function fetchArticleSummary(title) {
   if (isFictional(title)) return null;
   if (articleCache.has(title)) return articleCache.get(title);
 
-  // Try the primary title, then any fallbacks if it 404s
-  const titlesToTry = [title, ...(TITLE_FALLBACKS[title] ?? [])];
+  // Try the title directly (titles in STATIC_CHARACTERS are already verified)
+  const titlesToTry = [title];
 
   for (const tryTitle of titlesToTry) {
     const encoded = encodeURIComponent(tryTitle.replace(/ /g, '_'));
