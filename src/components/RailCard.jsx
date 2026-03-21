@@ -89,21 +89,42 @@ function CharacterFallback({ character, size }) {
 
 // ── Thomas & Friends character banner ─────────────────────────────────────────
 function ThomasBanner({ character, size }) {
-  // Fetch from Fandom API on mount (result is cached in localStorage for 7 days)
-  const [imgUrl,  setImgUrl]  = useState(null);   // resolved URL from API
-  const [imgOk,   setImgOk]   = useState(false);  // image has loaded successfully
-  const [imgFail, setImgFail] = useState(false);  // image URL resolved but 404'd
+  const [imgUrl,      setImgUrl]      = useState(null);
+  const [imgOk,       setImgOk]       = useState(false);
+  const [localFailed, setLocalFailed] = useState(false); // local file 404'd, try API
 
+  // On mount: fetch image (local path or cached API result)
   useEffect(() => {
     let cancelled = false;
-    fetchFandomCharacterImage(character.character)
+    fetchFandomCharacterImage(character.character, false)
       .then(url => { if (!cancelled) setImgUrl(url); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [character.character]);
 
-  const currentUrl = imgFail ? null : imgUrl;
-  const handleError = () => { setImgFail(true); };
+  // If the local file 404s, re-fetch forcing the API (skipping local)
+  useEffect(() => {
+    if (!localFailed) return;
+    let cancelled = false;
+    fetchFandomCharacterImage(character.character, true)
+      .then(url => { if (!cancelled) setImgUrl(url); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [localFailed, character.character]);
+
+  const handleError = () => {
+    if (imgUrl?.startsWith('/characters/')) {
+      // Local file missing — escalate to API
+      setImgOk(false);
+      setImgUrl(null);
+      setLocalFailed(true);
+    } else {
+      // API URL also failed — show colour fallback
+      setImgUrl('__fail__');
+    }
+  };
+
+  const currentUrl = (!imgUrl || imgUrl === '__fail__') ? null : imgUrl;
 
   const sz      = SZ[size];
   // Keep banner thin so it doesn't eat the train photo

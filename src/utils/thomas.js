@@ -19,7 +19,7 @@ export const THOMAS_LOCO_ARTICLES = [
   { wikiArticle:'LMS Fowler 4F',             character:'Henry',         show:'Thomas & Friends', color:'#2e7d32', minRarity:'E' },
   { wikiArticle:'GWR 5700 class',            character:'Duck',          show:'Thomas & Friends', color:'#2e7d32', minRarity:'E' },
   { wikiArticle:'GWR 1400 class',            character:'Oliver',        show:'Thomas & Friends', color:'#2e7d32', minRarity:'E' },
-  { wikiArticle:'GER Class J70',             character:'Toby',          show:'Thomas & Friends', color:'#4e342e', minRarity:'E' },
+  { wikiArticle:'LNER Class J70',            character:'Toby',          show:'Thomas & Friends', color:'#4e342e', minRarity:'E' },
   { wikiArticle:'GNR Stirling Single',       character:'Emily',         show:'Thomas & Friends', color:'#1b5e20', minRarity:'E' },
   { wikiArticle:'Furness Railway K2 class',  character:'James',         show:'Thomas & Friends', color:'#c62828', minRarity:'E' },
   { wikiArticle:'LNER Class A4',             character:'Spencer',       show:'Thomas & Friends', color:'#78909c', minRarity:'E' },

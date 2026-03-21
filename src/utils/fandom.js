@@ -140,9 +140,10 @@ async function fetchViaImageList(name) {
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
-export async function fetchFandomCharacterImage(characterName) {
-  // Priority 1: local bundled image (no network, instant)
-  if (LOCAL_IMAGES[characterName]) return LOCAL_IMAGES[characterName];
+// skipLocal=true forces the API path (used when a local file 404s at runtime)
+export async function fetchFandomCharacterImage(characterName, skipLocal = false) {
+  // Priority 1: local bundled image (no network, instant) — unless skipped
+  if (!skipLocal && LOCAL_IMAGES[characterName]) return LOCAL_IMAGES[characterName];
 
   // Priority 2: cached API result
   const cache = loadCache();
