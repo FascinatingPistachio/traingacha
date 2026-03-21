@@ -33,19 +33,19 @@ function CardImage({ src, alt }) {
     if (img?.complete) setStatus(img.naturalWidth > 0 ? 'loaded' : 'error');
   }, [src]);
   return (
-    <div style={{ width:'100%', height:'100%', position:'relative', overflow:'hidden', background:'rgba(0,0,0,0.4)' }}>
+    <div style={{ width:'100%', height:'100%', position:'relative', overflow:'hidden', background:'#ffffff' }}>
       {status === 'loading' && (
-        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div className="spinner" />
+        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(240,240,240,0.5)' }}>
+          <div className="spinner" style={{ borderColor:'rgba(0,0,0,0.12)', borderTopColor:'rgba(0,0,0,0.45)' }} />
         </div>
       )}
       {status === 'error' && (
-        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4 }}>
+        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4, background:'#f5f5f5' }}>
           <svg width="28" height="16" viewBox="0 0 80 42" fill="none">
-            <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(255,255,255,0.12)"/>
-            <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(255,255,255,0.14)"/>
-            <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="2"/>
-            <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="2"/>
+            <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(0,0,0,0.12)"/>
+            <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(0,0,0,0.12)"/>
+            <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(0,0,0,0.12)" strokeWidth="2"/>
+            <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(0,0,0,0.12)" strokeWidth="2"/>
           </svg>
           <span style={{ fontSize:6, color:'rgba(255,255,255,0.15)', fontFamily:'monospace' }}>NO IMAGE</span>
         </div>
