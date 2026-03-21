@@ -192,19 +192,21 @@ export async function fetchArticleSummary(title) {
       articleCache.set(title, cached);
       return cached;
     }
-    // Short 1-sentence extract for card display
-    const extract = (d.extract ?? '')
+    // Short extract (2 sentences) for card body; full extract for modal
+    const sentences = (d.extract ?? '')
       .replace(/\([^)]*\)/g, '')
       .split(/\.(?:\s+|$)/)
-      .map(s => s.trim()).filter(Boolean)
-      .slice(0, 1).join('. ').trim();
+      .map(s => s.trim()).filter(Boolean);
+    const extract     = sentences.slice(0, 2).join('. ').trim();
+    const fullExtract = (d.extract ?? '').trim();
     const result = {
-      id:      makeId(canonicalTitle),
-      title:   canonicalTitle,
-      extract: extract ? extract + '.' : '',
-      image:   d.thumbnail.source.replace(/\/\d+px-/, '/400px-'),
-      imageHD: d.thumbnail.source.replace(/\/\d+px-/, '/800px-'),
-      url:     d.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encoded}`,
+      id:          makeId(canonicalTitle),
+      title:       canonicalTitle,
+      extract:     extract ? extract + '.' : '',
+      fullExtract: fullExtract,
+      image:       d.thumbnail.source.replace(/\/\d+px-/, '/400px-'),
+      imageHD:     d.thumbnail.source.replace(/\/\d+px-/, '/800px-'),
+      url:         d.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encoded}`,
     };
     articleCache.set(title, result);
     articleCache.set(canonicalTitle, result);

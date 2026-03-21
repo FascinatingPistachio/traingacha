@@ -105,3 +105,140 @@ html, body, #root { height: 100%; background: #06101c; color: #e8e0d0; font-fami
 /* Card hover lift */
 .rail-card:hover { transform:translateY(-3px) scale(1.02); }
 .rail-card--high:hover { transform:translateY(-4px) scale(1.03); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3D CARD SYSTEM
+═══════════════════════════════════════════════════════════════════════════ */
+
+.card-3d-wrap {
+  perspective: 800px;
+  transform-style: preserve-3d;
+}
+.card-3d-inner {
+  transform-style: preserve-3d;
+  transition: transform 0.08s ease-out;
+  will-change: transform;
+  position: relative;
+}
+.card-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 30;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: radial-gradient(ellipse at var(--mx,50%) var(--my,50%),
+    rgba(255,255,255,0.22) 0%,
+    rgba(255,255,255,0.06) 40%,
+    transparent 70%);
+}
+.card-3d-wrap:hover .card-shine { opacity: 1; }
+
+/* ── Full-screen card detail 3D flip ── */
+.modal-card-scene {
+  perspective: 1000px;
+}
+.modal-card-flipper {
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.modal-card-flipper.flipped { transform: rotateY(180deg); }
+.modal-face-front,
+.modal-face-back {
+  backface-visibility: hidden;
+  position: absolute;
+  inset: 0;
+}
+.modal-face-back { transform: rotateY(180deg); }
+
+/* ── Stat bar animations ── */
+@keyframes statFill {
+  from { width: 0%; }
+  to   { width: var(--w); }
+}
+.stat-bar-fill {
+  animation: statFill 0.9s cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation-delay: var(--delay, 0s);
+}
+
+/* ── Score counter roll-up ── */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Legendary entrance burst ── */
+@keyframes legendBurst {
+  0%   { opacity: 0; transform: scale(0.3) rotate(-10deg); }
+  50%  { opacity: 1; transform: scale(1.08) rotate(2deg); }
+  70%  { transform: scale(0.97) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.legend-burst { animation: legendBurst 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* ── Particle sparks ── */
+@keyframes spark {
+  0%   { transform: translate(0,0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--sx),var(--sy)) scale(0); opacity: 0; }
+}
+.spark {
+  position: absolute;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: spark 0.8s ease-out both;
+}
+
+/* ── Collection grid card wrapper ── */
+.coll-card-wrap {
+  cursor: pointer;
+  border-radius: 10px;
+  transition: transform 0.18s cubic-bezier(0.34,1.4,0.64,1);
+}
+.coll-card-wrap:hover { transform: translateY(-6px) scale(1.03); }
+.coll-card-wrap:active { transform: scale(0.97); }
+
+/* ── Rarity glow pulse ── */
+@keyframes legendGlow {
+  0%,100% { box-shadow: 0 0 14px rgba(232,192,64,0.35), 0 4px 20px rgba(0,0,0,0.7); }
+  50%      { box-shadow: 0 0 28px rgba(232,192,64,0.7),  0 4px 20px rgba(0,0,0,0.7); }
+}
+@keyframes mythicGlow {
+  0%   { box-shadow: 0 0 20px rgba(140,100,255,0.5); }
+  33%  { box-shadow: 0 0 20px rgba(100,200,255,0.5); }
+  66%  { box-shadow: 0 0 20px rgba(255,100,200,0.5); }
+  100% { box-shadow: 0 0 20px rgba(140,100,255,0.5); }
+}
+.glow-L { animation: legendGlow 2s ease-in-out infinite; }
+.glow-M { animation: mythicGlow 2s linear infinite; }
+
+/* ── Modal backdrop blur ── */
+@keyframes backdropIn {
+  from { opacity: 0; backdrop-filter: blur(0px); }
+  to   { opacity: 1; backdrop-filter: blur(16px); }
+}
+.modal-backdrop {
+  animation: backdropIn 0.25s ease-out both;
+}
+
+/* ── Slide up panel ── */
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.slide-up { animation: slideUp 0.35s cubic-bezier(0.34,1.2,0.64,1) both; }
+
+/* ── Number roll animation ── */
+@keyframes numRoll {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  60%  { transform: translateY(4px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* Shimmer sweep (used by stat bars and holographic foil) */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
