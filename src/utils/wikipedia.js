@@ -1,5 +1,5 @@
 import { VIEW_THRESHOLDS, FICTIONAL_TITLE_PATTERNS } from '../constants.js';
-import { applyCharacterRarityBoost, getCharacterForTrain } from './characters.js';
+import { applyCharacterRarityBoost, getCharacterForTrain, parseCharacterFromWikitext } from './characters.js';
 import { getThomasArticleIndex } from './thomas.js';
 
 export const CATEGORIES = {
@@ -53,9 +53,13 @@ export const PITY_POOL = {
   low:  ALL_CATEGORIES,
 };
 
+// ── Caches ────────────────────────────────────────────────────────────────────
 const categoryMembersCache = new Map();
-const articleCache         = new Map(); // canonical title → result
+const articleCache         = new Map();  // title → article object (without character)
+const wikitextCache        = new Map();  // title → raw wikitext
 const viewsCache           = new Map();
+const characterCache       = new Map();  // title → character | null (parsed from wikitext)
+const sessionSeen          = new Set();
 
 function getSeenPersisted() {
   try { return new Set(JSON.parse(sessionStorage.getItem('rg_seen') ?? '[]')); }
@@ -63,14 +67,12 @@ function getSeenPersisted() {
 }
 function addSeenPersisted(title) {
   try {
-    const s   = getSeenPersisted();
-    s.add(title);
+    const s = getSeenPersisted(); s.add(title);
     sessionStorage.setItem('rg_seen', JSON.stringify([...s].slice(-200)));
   } catch {}
 }
 
-/** Returns true if a Wikipedia article title refers to a fictional entity */
-function isFictionalArticle(title) {
+function isFictional(title) {
   return FICTIONAL_TITLE_PATTERNS.some(p => p.test(title));
 }
 
@@ -81,13 +83,12 @@ export async function getCategoryMembers(category) {
       action:'query', list:'categorymembers', cmtitle:`Category:${category}`,
       cmlimit:'100', cmtype:'page', format:'json', origin:'*',
     });
-    const res   = await fetch(`https://en.wikipedia.org/w/api.php?${params}`);
+    const res     = await fetch(`https://en.wikipedia.org/w/api.php?${params}`);
     if (!res.ok) throw new Error();
-    const data  = await res.json();
-    // Filter fictional titles at source
+    const data    = await res.json();
     const members = (data.query?.categorymembers ?? [])
       .map(m => m.title)
-      .filter(t => !isFictionalArticle(t));
+      .filter(t => !isFictional(t));
     categoryMembersCache.set(category, members);
     return members;
   } catch {
@@ -108,9 +109,7 @@ export async function getMonthlyPageViews(title) {
     if (!res.ok) { viewsCache.set(title, 0); return 0; }
     const data  = await res.json();
     const items = data.items ?? [];
-    const avg   = items.length
-      ? Math.round(items.reduce((s, i) => s + i.views, 0) / items.length)
-      : 0;
+    const avg   = items.length ? Math.round(items.reduce((s,i) => s+i.views,0)/items.length) : 0;
     viewsCache.set(title, avg);
     return avg;
   } catch {
@@ -119,15 +118,9 @@ export async function getMonthlyPageViews(title) {
   }
 }
 
-/**
- * Bimodal rarity:
- *  - Mythic   = VERY obscure (< MYTHIC_MAX views) AND 12% probability roll → rarer than Legendary
- *  - Legendary = globally famous (≥ 80k views)
- *  - Between those: Epic / Rare / Common by view count
- */
 export function rarityFromViews(views) {
+  // Mythic = ultra-obscure AND only fires 12% of the time (so genuinely rarer than Legendary)
   if (views > 0 && views < VIEW_THRESHOLDS.MYTHIC_MAX) {
-    // Only become Mythic 12% of the time — rest are demoted to Common
     return Math.random() < VIEW_THRESHOLDS.MYTHIC_PROB ? 'M' : 'C';
   }
   if (views >= VIEW_THRESHOLDS.L) return 'L';
@@ -136,10 +129,117 @@ export function rarityFromViews(views) {
   return 'C';
 }
 
+/**
+ * Fetch the raw wikitext of an article.
+ * Used to parse the "In popular culture" section for fictional character references.
+ */
+async function fetchWikitext(title) {
+  if (wikitextCache.has(title)) return wikitextCache.get(title);
+  try {
+    const params = new URLSearchParams({
+      action:'query', titles:title, prop:'revisions',
+      rvprop:'content', rvslots:'main',
+      rvsection:'0', // only the lead + we'll also check popular culture by fetching more
+      format:'json', origin:'*',
+      // Limit content size — we don't need the full article
+      rvcontentformat:'text/x-wiki',
+    });
+    // First try fetching just what we need by looking for the section
+    const params2 = new URLSearchParams({
+      action:'parse', page:title, prop:'wikitext',
+      section:'0', format:'json', origin:'*',
+    });
+    const res  = await fetch(`https://en.wikipedia.org/w/api.php?${params2}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    // Get intro section
+    const intro = data.parse?.wikitext?.['*'] ?? '';
+
+    // Now also fetch "In popular culture" section if it exists
+    // We find it by searching for the section title in the full article
+    const params3 = new URLSearchParams({
+      action:'query', titles:title, prop:'revisions',
+      rvprop:'content', rvslots:'main', format:'json', origin:'*',
+      rvsection:'0',
+    });
+    // Combine: use intro + look for culture section
+    let combined = intro;
+
+    // Also try full article but limit chars (Wikipedia API doesn't support char limits easily)
+    // Instead, search for popular culture in the full wikitext if intro is short
+    if (intro.length < 500) {
+      const params4 = new URLSearchParams({
+        action:'query', titles:title, prop:'revisions',
+        rvprop:'content', rvslots:'main', format:'json', origin:'*',
+      });
+      const res4  = await fetch(`https://en.wikipedia.org/w/api.php?${params4}`);
+      if (res4.ok) {
+        const data4 = await res4.json();
+        const pages = data4.query?.pages ?? {};
+        const page  = Object.values(pages)[0];
+        const full  = page?.revisions?.[0]?.slots?.main?.['*'] ?? '';
+        // Only take first 6000 chars to avoid huge memory usage
+        combined = full.slice(0, 6000);
+      }
+    }
+
+    wikitextCache.set(title, combined);
+    return combined;
+  } catch {
+    wikitextCache.set(title, '');
+    return '';
+  }
+}
+
+/**
+ * Fetch the full article wikitext (limited to 8000 chars) to find culture section.
+ */
+async function fetchFullWikitextForCharacter(title) {
+  const cacheKey = title + '_full';
+  if (wikitextCache.has(cacheKey)) return wikitextCache.get(cacheKey);
+  try {
+    const params = new URLSearchParams({
+      action:'query', titles:title, prop:'revisions',
+      rvprop:'content', rvslots:'main', format:'json', origin:'*',
+    });
+    const res  = await fetch(`https://en.wikipedia.org/w/api.php?${params}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const pages = data.query?.pages ?? {};
+    const page  = Object.values(pages)[0];
+    const full  = (page?.revisions?.[0]?.slots?.main?.['*'] ?? '').slice(0, 8000);
+    wikitextCache.set(cacheKey, full);
+    return full;
+  } catch {
+    wikitextCache.set(cacheKey, '');
+    return '';
+  }
+}
+
+/**
+ * Detect if a locomotive article has a fictional character based on it,
+ * by parsing the article's wikitext for popular culture references.
+ */
+async function detectCharacterFromArticle(title, thomasIndex) {
+  if (characterCache.has(title)) return characterCache.get(title);
+
+  // 1. Check static/Thomas index first (fast path)
+  const staticChar = getCharacterForTrain(title, thomasIndex);
+  if (staticChar) {
+    characterCache.set(title, staticChar);
+    return staticChar;
+  }
+
+  // 2. Fetch and parse wikitext
+  const wikitext  = await fetchFullWikitextForCharacter(title);
+  const parsed    = parseCharacterFromWikitext(wikitext);
+  characterCache.set(title, parsed);
+  return parsed;
+}
+
 export async function fetchArticleSummary(title) {
-  // Skip fictional articles
-  if (isFictionalArticle(title)) return null;
-  if (articleCache.has(title))   return articleCache.get(title);
+  if (isFictional(title)) return null;
+  if (articleCache.has(title)) return articleCache.get(title);
 
   try {
     const encoded = encodeURIComponent(title.replace(/ /g, '_'));
@@ -147,8 +247,8 @@ export async function fetchArticleSummary(title) {
     if (!res.ok) return null;
     const d = await res.json();
 
-    if (!d.thumbnail?.source)     return null;   // no image → skip
-    if (isFictionalArticle(d.title ?? '')) return null; // double-check canonical title
+    if (!d.thumbnail?.source)       return null;
+    if (isFictional(d.title ?? '')) return null;
 
     const canonicalTitle = d.title ?? title;
     if (articleCache.has(canonicalTitle)) {
@@ -178,35 +278,6 @@ export async function fetchArticleSummary(title) {
   } catch { return null; }
 }
 
-/**
- * Draw one card for a Thomas-character pull.
- * Fetches the REAL LOCOMOTIVE article the character is based on,
- * and attaches the character as badge data only.
- */
-export async function fetchThomasCard() {
-  const { fetchThomasCharacters } = await import('./thomas.js');
-  const chars   = await fetchThomasCharacters();
-  const entries = Object.values(chars).filter(c => c.wikiArticle && !isFictionalArticle(c.wikiArticle));
-  if (!entries.length) return null;
-
-  const seen     = getSeenPersisted();
-  const unseen   = entries.filter(c => !seen.has(c.wikiArticle));
-  const pool     = (unseen.length ? unseen : entries).sort(() => Math.random() - 0.5);
-
-  for (const char of pool) {
-    const article = await fetchArticleSummary(char.wikiArticle);
-    if (!article) continue;
-    const views  = await getMonthlyPageViews(char.wikiArticle);
-    let   rarity = rarityFromViews(views);
-    rarity       = applyCharacterRarityBoost(rarity, char);
-    addSeenPersisted(char.wikiArticle);
-    return { ...article, rarity, views, character: char };
-  }
-  return null;
-}
-
-const sessionSeen = new Set();
-
 export async function fetchTrainCard(categoryPool, maxAttempts = 16) {
   const thomasIndex   = await getThomasArticleIndex();
   const persistedSeen = getSeenPersisted();
@@ -217,24 +288,51 @@ export async function fetchTrainCard(categoryPool, maxAttempts = 16) {
     if (!members.length) continue;
 
     const unseen    = members.filter(t => !sessionSeen.has(t) && !persistedSeen.has(t));
-    const pool      = (unseen.length ? unseen : members.filter(t => !sessionSeen.has(t)));
+    const pool      = unseen.length ? unseen : members.filter(t => !sessionSeen.has(t));
     const finalPool = pool.length ? pool : members;
     const title     = finalPool[Math.floor(Math.random() * finalPool.length)];
 
-    if (isFictionalArticle(title)) continue;
+    if (isFictional(title)) continue;
 
     const article = await fetchArticleSummary(title);
     if (!article) continue;
 
-    const views     = await getMonthlyPageViews(title);
-    let   rarity    = rarityFromViews(views);
-    const character = getCharacterForTrain(article.title, thomasIndex);
+    const [views, character] = await Promise.all([
+      getMonthlyPageViews(title),
+      detectCharacterFromArticle(article.title, thomasIndex),
+    ]);
+
+    let rarity = rarityFromViews(views);
     if (character) rarity = applyCharacterRarityBoost(rarity, character);
 
     sessionSeen.add(title);
     sessionSeen.add(article.title);
     addSeenPersisted(title);
     return { ...article, rarity, views, character: character ?? null };
+  }
+  return null;
+}
+
+// Thomas-specific cheat draw — fetches a real loco that has a Thomas character
+export async function fetchThomasCard() {
+  const { fetchThomasCharacters } = await import('./thomas.js');
+  const chars   = await fetchThomasCharacters();
+  const thomasIndex = await getThomasArticleIndex();
+  const entries = Object.values(chars).filter(c => c.wikiArticle && !isFictional(c.wikiArticle));
+  if (!entries.length) return null;
+
+  const seen   = getSeenPersisted();
+  const pool   = [...entries].filter(c => !seen.has(c.wikiArticle)).sort(() => Math.random() - 0.5);
+  const tryList = pool.length ? pool : entries.sort(() => Math.random() - 0.5);
+
+  for (const char of tryList) {
+    const article = await fetchArticleSummary(char.wikiArticle);
+    if (!article) continue;
+    const views   = await getMonthlyPageViews(char.wikiArticle);
+    let   rarity  = rarityFromViews(views);
+    rarity        = applyCharacterRarityBoost(rarity, char);
+    addSeenPersisted(char.wikiArticle);
+    return { ...article, rarity, views, character: char };
   }
   return null;
 }

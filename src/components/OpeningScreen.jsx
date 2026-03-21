@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import RailCard from './RailCard.jsx';
 import CardBack from './CardBack.jsx';
+import CardDetailModal from './CardDetailModal.jsx';
 import PackAnimation from './PackAnimation.jsx';
 import { RARITY } from '../constants.js';
-import { soundFlip, soundPackHover } from '../utils/sounds.js';
+import { soundFlip, soundPackHover, soundClick } from '../utils/sounds.js';
 
 export default function OpeningScreen({ cardsPromise, onDone }) {
   const [phase,    setPhase]    = useState('animating');
   const [cards,    setCards]    = useState(null);
   const [revealed, setRevealed] = useState(new Set());
+  const [preview,  setPreview]  = useState(null); // card shown in detail modal
 
   const handleAnimationDone = async () => {
     setPhase('waiting');
@@ -31,7 +33,9 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
     return (
       <div style={{ minHeight:'calc(100vh - 100px)', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:14 }}>
         <div className="spinner" style={{ width:28, height:28, borderWidth:3 }} />
-        <p style={{ fontSize:10, color:'rgba(201,168,51,0.5)', fontFamily:'monospace' }}>pulling cards from wikipedia…</p>
+        <p style={{ fontSize:10, color:'rgba(201,168,51,0.5)', fontFamily:'monospace' }}>
+          pulling cards from wikipedia…
+        </p>
       </div>
     );
   }
@@ -45,11 +49,19 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
   };
 
   const revealAll = () => {
-    cards.forEach((c, i) => { if (!revealed.has(i)) setTimeout(() => soundFlip(c.rarity), i * 90); });
+    cards.forEach((c, i) => {
+      if (!revealed.has(i)) setTimeout(() => soundFlip(c.rarity), i * 90);
+    });
     setRevealed(new Set(cards.map((_, i) => i)));
   };
 
-  // ── Best pull — only computed and shown AFTER all cards revealed ──────────
+  // Click on an already-revealed card → open detail modal
+  const handleCardClick = (card) => {
+    soundClick();
+    setPreview(card);
+  };
+
+  // Best pull — only computed AFTER all cards are revealed
   const best = done && cards.length
     ? cards.reduce((b, c) => (RARITY[c.rarity]?.rank ?? 0) > (RARITY[b.rarity]?.rank ?? 0) ? c : b, cards[0])
     : null;
@@ -57,55 +69,76 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
 
   return (
     <div style={{
-      minHeight: 'calc(100vh - 100px)', padding:'18px 10px 28px',
+      minHeight:'calc(100vh - 100px)', padding:'18px 10px 28px',
       display:'flex', flexDirection:'column', alignItems:'center',
       maxWidth:640, margin:'0 auto',
     }}>
       <h2 style={{ color:'#c9a833', margin:'0 0 4px', fontSize:13, fontFamily:'monospace', letterSpacing:'.2em' }}>
         YOUR CARDS
       </h2>
-      <p style={{ fontSize:8.5, color:'#1e3a5a', margin:'0 0 22px', fontFamily:'monospace' }}>
-        {done ? 'ALL CARDS REVEALED' : `TAP TO REVEAL · ${revealed.size}/${cards.length}`}
+      <p style={{ fontSize:8.5, color:'#1e3a5a', margin:'0 0 6px', fontFamily:'monospace' }}>
+        {done
+          ? 'ALL REVEALED · TAP A CARD TO INSPECT'
+          : `TAP TO REVEAL · ${revealed.size}/${cards.length}`}
       </p>
+      {done && (
+        <p style={{ fontSize:7.5, color:'rgba(201,168,51,0.35)', margin:'0 0 18px', fontFamily:'monospace', letterSpacing:'.1em' }}>
+          TAP ANY CARD TO VIEW DETAILS
+        </p>
+      )}
+      {!done && <div style={{ marginBottom:16 }} />}
 
-      {/* Cards — md size, uniform dimensions */}
+      {/* Cards row */}
       <div style={{ display:'flex', gap:10, flexWrap:'wrap', justifyContent:'center', marginBottom:22 }}>
         {cards.map((card, i) =>
           revealed.has(i) ? (
-            <div key={i} style={{ animation:'cardFanIn 0.45s cubic-bezier(0.22,1,0.36,1) both' }}>
-              <RailCard card={card} size="md" revealed />
+            <div
+              key={i}
+              style={{ animation:'cardFanIn 0.45s cubic-bezier(0.22,1,0.36,1) both', cursor:'pointer' }}
+              title="Click to inspect"
+            >
+              <RailCard
+                card={card}
+                size="md"
+                revealed
+                onClick={() => handleCardClick(card)}
+              />
             </div>
           ) : (
-            <CardBack key={i} size="md" onClick={() => reveal(i)} onHover={() => soundPackHover()} />
+            <CardBack
+              key={i}
+              size="md"
+              onClick={() => reveal(i)}
+              onHover={() => soundPackHover()}
+            />
           )
         )}
       </div>
 
-      {/* ── Best pull banner — ONLY shows after ALL cards are revealed ── */}
+      {/* Best pull banner — ONLY after all revealed */}
       {done && best && bestRank >= 2 && (
         <div style={{
-          background: `linear-gradient(135deg, ${RARITY[best.rarity].bg}, #030610)`,
-          border: `2px solid ${RARITY[best.rarity].border}`,
-          borderRadius: 12, padding:'12px 18px', marginBottom:18, maxWidth:360,
-          boxShadow: `0 0 28px ${RARITY[best.rarity].glow}`,
+          background:`linear-gradient(135deg, ${RARITY[best.rarity].bg}, #030610)`,
+          border:`2px solid ${RARITY[best.rarity].border}`,
+          borderRadius:12, padding:'12px 18px', marginBottom:18, maxWidth:360,
+          boxShadow:`0 0 28px ${RARITY[best.rarity].glow}`,
           animation:'fadeUp 0.45s ease-out',
           display:'flex', gap:12, alignItems:'center',
-        }}>
-          {/* Thumbnail */}
+          cursor:'pointer',
+        }}
+          onClick={() => handleCardClick(best)}
+        >
           <div style={{ width:52, height:52, borderRadius:8, overflow:'hidden', flexShrink:0,
             border:`1.5px solid ${RARITY[best.rarity].border}` }}>
             <img src={best.image} alt={best.title}
               style={{ width:'100%', height:'100%', objectFit:'cover' }}
               onError={e => { e.target.style.display='none'; }} />
           </div>
-
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:8, color:RARITY[best.rarity].color, fontFamily:'monospace', letterSpacing:'.1em', marginBottom:3 }}>
-              {best.rarity === 'M'
+              {best.rarity==='M'
                 ? '✦ MYTHIC PULL — ONE IN A THOUSAND'
-                : best.rarity === 'L'
-                  ? '⭐ LEGENDARY PULL!'
-                  : '✨ EPIC PULL!'}
+                : best.rarity==='L' ? '⭐ LEGENDARY PULL!' : '✨ EPIC PULL!'}
             </div>
             <div style={{ fontSize:12, color:'#f0e8d8', fontFamily:'Georgia,serif', fontWeight:700, lineHeight:1.25,
               overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>
@@ -117,10 +150,14 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
                 {best.character.emoji} {best.character.note}
               </div>
             )}
+            <div style={{ fontSize:7, color:'rgba(255,255,255,0.25)', fontFamily:'monospace', marginTop:2 }}>
+              TAP TO INSPECT →
+            </div>
           </div>
         </div>
       )}
 
+      {/* Actions */}
       <div style={{ display:'flex', gap:9 }}>
         {!done && (
           <button onClick={revealAll} style={{
@@ -141,6 +178,17 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
           </button>
         )}
       </div>
+
+      {/* Detail modal for inspecting a revealed card */}
+      {preview && (
+        <CardDetailModal
+          card={preview}
+          count={1}
+          isFav={false}
+          onFav={null}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
   );
 }
