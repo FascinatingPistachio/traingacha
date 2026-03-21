@@ -52,13 +52,28 @@ export const PITY_POOL = {
   low:  ALL_CATEGORIES,
 };
 
+// ── Categories where Thomas characters are plausible ─────────────────────────
+// Only fetch wikitext for articles from these categories — avoids wasting
+// time on ICE trains or Shinkansen which will never have Thomas connections.
+const THOMAS_CANDIDATE_CATEGORIES = new Set([
+  'Steam_locomotives_of_the_United_Kingdom',
+  'Steam_locomotives_of_the_United_States',
+  'Heritage_railways_in_the_United_Kingdom',
+  'Named_passenger_trains_of_the_United_Kingdom',
+  'Steam_locomotives_of_Germany',
+  'Narrow-gauge_locomotives',
+]);
+
 // ── Caches ────────────────────────────────────────────────────────────────────
 const categoryMembersCache = new Map();
 const articleCache         = new Map();
 const viewsCache           = new Map();
-const characterCache       = new Map(); // canonical title → character | null
+const characterCache       = new Map(); // title → character | null
 const wikitextCache        = new Map();
 const sessionSeen          = new Set();
+
+// Track which category each title came from
+const titleCategoryMap     = new Map();
 
 function getSeenPersisted() {
   try { return new Set(JSON.parse(sessionStorage.getItem('rg_seen') ?? '[]')); }
@@ -75,6 +90,15 @@ function isFictional(title) {
   return FICTIONAL_TITLE_PATTERNS.some(p => p.test(title));
 }
 
+function isThomosCandidate(title) {
+  // If we know the category it came from, only fetch wikitext for candidates
+  const cat = titleCategoryMap.get(title);
+  if (cat) return THOMAS_CANDIDATE_CATEGORIES.has(cat);
+  // If category unknown, check the title — UK steam and heritage locos are likely candidates
+  return /class|railway|steam|loco|engine/i.test(title) &&
+         /GWR|LMS|LNER|GER|GNR|BR|LBSCR|Midland|Furness|Talyllyn|heritage/i.test(title);
+}
+
 export async function getCategoryMembers(category) {
   if (categoryMembersCache.has(category)) return categoryMembersCache.get(category);
   try {
@@ -88,6 +112,8 @@ export async function getCategoryMembers(category) {
     const members = (data.query?.categorymembers ?? [])
       .map(m => m.title)
       .filter(t => !isFictional(t));
+    // Record which category each title came from
+    members.forEach(t => { if (!titleCategoryMap.has(t)) titleCategoryMap.set(t, category); });
     categoryMembersCache.set(category, members);
     return members;
   } catch {
@@ -124,15 +150,18 @@ export function rarityFromViews(views) {
   return 'C';
 }
 
-// Fetch raw wikitext for character detection (limited to first 8000 chars)
-async function fetchWikitext(title) {
+// Wikitext fetch with 4-second timeout to avoid blocking pack opens
+async function fetchWikitextWithTimeout(title, timeoutMs = 4000) {
   if (wikitextCache.has(title)) return wikitextCache.get(title);
   try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), timeoutMs);
     const params = new URLSearchParams({
       action:'query', titles:title, prop:'revisions',
       rvprop:'content', rvslots:'main', format:'json', origin:'*',
     });
-    const res  = await fetch(`https://en.wikipedia.org/w/api.php?${params}`);
+    const res  = await fetch(`https://en.wikipedia.org/w/api.php?${params}`, { signal: controller.signal });
+    clearTimeout(tid);
     if (!res.ok) throw new Error();
     const data = await res.json();
     const pages = data.query?.pages ?? {};
@@ -147,23 +176,32 @@ async function fetchWikitext(title) {
 }
 
 /**
- * Look up character for a locomotive.
- * TWO sources only — no dynamic thomas.js index:
- *   1. STATIC_CHARACTERS — hand-curated, 100% reliable
- *   2. Strict wikitext parser — only matches "basis for [Character]" phrasing
+ * Character detection — two sources, fast path first.
+ * Wikitext is only fetched for likely Thomas-candidate articles.
  */
-async function detectCharacter(canonicalTitle) {
+async function detectCharacter(canonicalTitle, fromCategory) {
   if (characterCache.has(canonicalTitle)) return characterCache.get(canonicalTitle);
 
-  // 1. Static lookup (fast path, always correct)
+  // Fast path 1: static lookup (instant)
   const staticChar = STATIC_CHARACTERS[canonicalTitle] ?? null;
   if (staticChar) {
     characterCache.set(canonicalTitle, staticChar);
     return staticChar;
   }
 
-  // 2. Fetch wikitext and apply strict pattern matching
-  const wikitext = await fetchWikitext(canonicalTitle);
+  // Fast path 2: only fetch wikitext if this is a plausible Thomas candidate
+  const candidate = fromCategory
+    ? THOMAS_CANDIDATE_CATEGORIES.has(fromCategory)
+    : isThomosCandidate(canonicalTitle);
+
+  if (!candidate) {
+    // Not a candidate (e.g. ICE 3, Shinkansen, Class 66 diesel) — skip wikitext fetch
+    characterCache.set(canonicalTitle, null);
+    return null;
+  }
+
+  // Fetch wikitext with timeout — won't block if Wikipedia is slow
+  const wikitext = await fetchWikitextWithTimeout(canonicalTitle);
   const parsed   = parseCharacterFromWikitext(wikitext);
   characterCache.set(canonicalTitle, parsed);
   return parsed;
@@ -226,9 +264,11 @@ export async function fetchTrainCard(categoryPool, maxAttempts = 16) {
     const article = await fetchArticleSummary(title);
     if (!article) continue;
 
+    // Run views + character detection in parallel
+    // Character detection skips wikitext fetch for non-Thomas-candidate categories
     const [views, character] = await Promise.all([
       getMonthlyPageViews(title),
-      detectCharacter(article.title),
+      detectCharacter(article.title, category),
     ]);
 
     let rarity = rarityFromViews(views);
@@ -242,21 +282,21 @@ export async function fetchTrainCard(categoryPool, maxAttempts = 16) {
   return null;
 }
 
-// Thomas cheat — draws from known static loco → character mappings only
+// Thomas cheat — uses verified static mappings only, no wikitext fetching
 export async function fetchThomasCard() {
   try { sessionStorage.removeItem('rg_seen'); } catch {}
+
   const entries = Object.entries(STATIC_CHARACTERS)
-    .filter(([, v]) => v.show === 'Thomas & Friends');
+    .filter(([, v]) => v.show === 'Thomas & Friends')
+    .sort(() => Math.random() - 0.5);
 
-  const shuffled = entries.sort(() => Math.random() - 0.5);
-
-  for (const [locoTitle, char] of shuffled) {
+  for (const [locoTitle, char] of entries) {
     if (isFictional(locoTitle)) continue;
     const article = await fetchArticleSummary(locoTitle);
     if (!article) continue;
-    const views  = await getMonthlyPageViews(locoTitle);
-    let   rarity = rarityFromViews(views);
-    rarity       = applyCharacterRarityBoost(rarity, char);
+    const views   = await getMonthlyPageViews(locoTitle);
+    let   rarity  = rarityFromViews(views);
+    rarity        = applyCharacterRarityBoost(rarity, char);
     addSeenPersisted(locoTitle);
     return { ...article, rarity, views, character: char };
   }
