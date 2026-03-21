@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { RARITY } from '../constants.js';
-import { fetchFandomCharacterImage } from '../utils/fandom.js';
+import { getCharacterImageUrls } from '../utils/fandom.js';
 import '../styles/cards.css';
 
 // ── Exact 2:3 ratio (600:900) at three display sizes ─────────────────────────
@@ -59,18 +59,45 @@ function CardImage({ src, alt }) {
   );
 }
 
-// ── Thomas & Friends character banner ─────────────────────────────────────────
-// Styled like reference: coloured strip across bottom of photo, portrait circle
-// overlapping the strip upward into the photo.
-function ThomasBanner({ character, size }) {
-  const [charImg,  setCharImg]  = useState(null);
-  const [imgOk,    setImgOk]    = useState(false);
+// ── Fallback for characters with no loadable image ───────────────────────────
+function CharacterFallback({ character, size }) {
+  const col    = character.color ?? '#4b5563';
+  const initials = character.character.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  // Gradient using the character's colour
+  const light  = col + 'cc';
+  return (
+    <div style={{
+      width:'100%', height:'100%',
+      background:`radial-gradient(circle at 35% 35%, ${light}, ${col})`,
+      display:'flex', alignItems:'center', justifyContent:'center',
+      flexDirection:'column', gap:1,
+    }}>
+      <span style={{
+        fontSize: size * 0.38,
+        fontWeight: 900,
+        color: 'rgba(255,255,255,0.95)',
+        fontFamily: 'Georgia, serif',
+        lineHeight: 1,
+        textShadow: '0 1px 4px rgba(0,0,0,0.5)',
+        letterSpacing: '-0.02em',
+      }}>
+        {initials}
+      </span>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    fetchFandomCharacterImage(character.character)
-      .then(url => setCharImg(url ?? null))
-      .catch(() => {});
-  }, [character.character]);
+// ── Thomas & Friends character banner ─────────────────────────────────────────
+function ThomasBanner({ character, size }) {
+  const urls    = getCharacterImageUrls(character.character);
+  const [urlIdx, setUrlIdx] = useState(0);   // which URL we're trying
+  const [imgOk,  setImgOk]  = useState(false);
+
+  const currentUrl = urls[urlIdx] ?? null;
+  const handleError = () => {
+    if (urlIdx < urls.length - 1) setUrlIdx(i => i + 1);
+    // If all URLs fail, currentUrl becomes null → fallback renders
+  };
 
   const sz      = SZ[size];
   const stripH  = size === 'sm' ? 26 : size === 'md' ? 32 : 38;
@@ -96,15 +123,23 @@ function ThomasBanner({ character, size }) {
         boxShadow:'0 2px 12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.2)',
         zIndex:9, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
       }}>
-        {charImg ? (
-          <img src={charImg} alt={character.character}
-            onLoad={() => setImgOk(true)}
-            style={{ width:'100%', height:'100%', objectFit:'cover', opacity:imgOk?1:0, transition:'opacity 0.3s' }}
-          />
-        ) : (
-          <span style={{ fontSize:circleD*0.36, fontWeight:800, color:'#fff', fontFamily:'monospace', textShadow:'0 1px 3px rgba(0,0,0,0.5)' }}>
+        {currentUrl && !imgOk && urlIdx < urls.length && (
+          // Show initial while loading
+          <span style={{ position:'absolute', fontSize:circleD*0.36, fontWeight:800, color:'rgba(255,255,255,0.4)', fontFamily:'monospace' }}>
             {character.character.charAt(0)}
           </span>
+        )}
+        {currentUrl ? (
+          <img src={currentUrl} alt={character.character}
+            onLoad={() => setImgOk(true)}
+            onError={handleError}
+            style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
+              opacity:imgOk?1:0, transition:'opacity 0.35s' }}
+          />
+        ) : null}
+        {/* Fallback when all URLs fail — styled initial circle */}
+        {(!currentUrl || (urlIdx >= urls.length - 1 && !imgOk)) && (
+          <CharacterFallback character={character} size={circleD} />
         )}
       </div>
 

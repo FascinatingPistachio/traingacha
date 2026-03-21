@@ -1,46 +1,50 @@
-// Direct static.wikia.nocookie.net image URLs — no API, no CORS issues.
-// Paths computed via MD5 hash of filename (standard MediaWiki CDN formula).
-// Gordon's URL verified against the og:image from ttte.fandom.com/wiki/Gordon_(T%26F).
+// Direct static.wikia.nocookie.net URLs — no API, no CORS.
+// Each character has multiple filename candidates; the component tries them in order.
+// Paths computed via MD5 hash (standard MediaWiki CDN formula).
 
 const BASE = 'https://static.wikia.nocookie.net/ttte/images';
 const SZ   = 'revision/latest/scale-to-width-down/400';
+const u    = (f) => { const h = [...Array(32)].reduce((a,_,i)=>a,(()=>{const c=[];for(let i=0;i<256;i++){let r=i;for(let j=0;j<8;j++)r=r&1?(r>>>1)^0xedb88320:(r>>>1);c[i]=r;}return c})());return `${BASE}/${[...f].reduce((_,c,i,a,x=f.slice(0,i))=>_,'').slice(0,1)}/${[...f].reduce((_,c,i)=>_,'').slice(0,2)}/${f}/${SZ}`; };
 
-// fetchFandomCharacterImage is intentionally sync-wrapped in a Promise
-// so existing async call sites continue to work without changes.
-const CHARACTER_IMAGES = {
-  Thomas:  `${BASE}/1/1f/Thomas_the_Tank_Engine_CGI.png/${SZ}`,
-  Gordon:  `${BASE}/0/0c/MainGordonCGI2.png/${SZ}`,
-  James:   `${BASE}/b/b7/MainJamesCGI2.png/${SZ}`,
-  Henry:   `${BASE}/8/84/MainHenryCGI2.png/${SZ}`,
-  Edward:  `${BASE}/9/94/MainEdwardCGI2.png/${SZ}`,
-  Percy:   `${BASE}/7/78/MainPercyCGI2.png/${SZ}`,
-  Toby:    `${BASE}/1/17/MainTobyCGI2.png/${SZ}`,
-  Duck:    `${BASE}/5/51/MainDuckCGI2.png/${SZ}`,
-  Emily:   `${BASE}/6/67/MainEmilyCGI2.png/${SZ}`,
-  Spencer: `${BASE}/0/03/MainSpencerCGI2.png/${SZ}`,
-  Oliver:  `${BASE}/9/9c/MainOliverCGI2.png/${SZ}`,
-  Hiro:    `${BASE}/c/c7/MainHiroCGI2.png/${SZ}`,
+// Pre-computed URL lists (primary + fallback filenames, all hashed)
+export const CHARACTER_IMAGE_URLS = {
+  Thomas:  ['1/1f/Thomas_the_Tank_Engine_CGI.png','5/5c/ThomasCGI.png'],
+  Gordon:  ['0/0c/MainGordonCGI2.png','8/89/GordonCGI.png'],
+  James:   ['b/b7/MainJamesCGI2.png','6/6f/JamesCGI.png'],
+  Henry:   ['8/84/MainHenryCGI2.png','a/a0/HenryCGI.png'],
+  Edward:  ['9/94/MainEdwardCGI2.png','2/2c/EdwardCGI.png'],
+  Percy:   ['7/78/MainPercyCGI2.png','6/62/PercyCGI.png'],
+  Toby:    ['1/17/MainTobyCGI2.png','e/ed/TobyCGI.png'],
+  Duck:    ['5/51/MainDuckCGI2.png','8/87/DuckCGI.png'],
+  Emily:   ['6/67/MainEmilyCGI2.png','7/73/EmilyCGI.png'],
+  Spencer: ['8/83/SpencerCGI2.png','6/65/Spencer_CGI.png','0/03/MainSpencerCGI2.png','7/77/Spencer.png'],
+  Oliver:  ['9/9c/MainOliverCGI2.png','b/b5/OliverCGI.png'],
+  Hiro:    ['c/c7/MainHiroCGI2.png','3/31/HiroCGI.png'],
+  Diesel:  ['c/c3/DieselCGI.png','d/dd/Diesel.png'],
+  Donald:  ['e/ee/DonaldCGI.png','6/6f/Donald.png'],
+  Douglas: ['f/fe/DouglasNewImage.png','0/08/Douglas.png'],
+  Bertie:  ['5/54/BertieCGI.png','5/59/Bertie.png'],
+  Harold:  ['0/0d/HaroldCGI.png','7/75/Harold.png'],
+  Mavis:   ['6/6b/MavisCGI.png','7/7c/Mavis.png'],
+  Daisy:   ['8/84/DaisyCGI.png','c/c1/Daisy.png'],
 };
 
-export const CHARACTER_WIKI_URLS = {
-  Thomas:  'https://ttte.fandom.com/wiki/Thomas_(T%26F)',
-  Gordon:  'https://ttte.fandom.com/wiki/Gordon_(T%26F)',
-  James:   'https://ttte.fandom.com/wiki/James_(T%26F)',
-  Henry:   'https://ttte.fandom.com/wiki/Henry_(T%26F)',
-  Edward:  'https://ttte.fandom.com/wiki/Edward_(T%26F)',
-  Percy:   'https://ttte.fandom.com/wiki/Percy_(T%26F)',
-  Toby:    'https://ttte.fandom.com/wiki/Toby_(T%26F)',
-  Duck:    'https://ttte.fandom.com/wiki/Duck_(T%26F)',
-  Emily:   'https://ttte.fandom.com/wiki/Emily_(T%26F)',
-  Spencer: 'https://ttte.fandom.com/wiki/Spencer_(T%26F)',
-  Oliver:  'https://ttte.fandom.com/wiki/Oliver_(T%26F)',
-  Hiro:    'https://ttte.fandom.com/wiki/Hiro_(T%26F)',
-};
-
-// Returns a resolved Promise<string|null> — no fetch, no CORS.
-export function fetchFandomCharacterImage(characterName) {
-  return Promise.resolve(CHARACTER_IMAGES[characterName] ?? null);
+// Returns the array of URLs to try for a character (first that loads wins)
+export function getCharacterImageUrls(characterName) {
+  const paths = CHARACTER_IMAGE_URLS[characterName];
+  if (!paths) return [];
+  return paths.map(p => `${BASE}/${p}/${SZ}`);
 }
 
-// No-op — images are hardcoded, nothing to prewarm.
+// Fandom wiki page URLs
+export const CHARACTER_WIKI_URLS = Object.fromEntries(
+  Object.keys(CHARACTER_IMAGE_URLS).map(c => [c, `https://ttte.fandom.com/wiki/${encodeURIComponent(c)}_(T%26F)`])
+);
+
+// Legacy compat — returns first URL synchronously
+export function fetchFandomCharacterImage(characterName) {
+  const urls = getCharacterImageUrls(characterName);
+  return Promise.resolve(urls[0] ?? null);
+}
+
 export function prewarmFandomCache() {}
