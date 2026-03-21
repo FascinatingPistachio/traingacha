@@ -289,53 +289,7 @@ function PackVisual({ showTop = true, showBottom = true, style = {}, onHover }) 
   );
 }
 
-// ── Card stack emerging from torn top ────────────────────────────────────────
-function CardStack({ riseAmount }) {
-  const capped = Math.min(riseAmount, 1);
-  return (
-    <div style={{
-      position:'absolute',
-      left:'50%',
-      transform:`translateX(-50%)`,
-      bottom: 9 + (1 - capped) * 60,
-      zIndex:2,
-      pointerEvents:'none',
-    }}>
-      {/* Fanned card backs */}
-      {[4,3,2,1,0].map(i => (
-        <div key={i} style={{
-          position:'absolute',
-          bottom: i * 3,
-          left: '50%',
-          transform:`translateX(-50%) rotate(${(i-2)*1.5}deg)`,
-          width: PW - 28,
-          height: 12,
-          background:`rgba(14,31,53,${0.9-i*0.1})`,
-          border:`1px solid rgba(201,168,51,${0.5-i*0.07})`,
-          borderRadius:3,
-          boxShadow:'0 2px 8px rgba(0,0,0,0.3)',
-        }} />
-      ))}
-      {/* Top card */}
-      <div style={{
-        position:'relative', zIndex:5,
-        width: PW - 28, height:55,
-        background:'linear-gradient(165deg,#0d1f35,#060f1c)',
-        border:'2px solid rgba(201,168,51,0.55)',
-        borderRadius:7,
-        display:'flex', alignItems:'center', justifyContent:'center',
-        boxShadow:'0 -4px 18px rgba(201,168,51,0.25), 0 4px 12px rgba(0,0,0,0.5)',
-      }}>
-        <svg width="36" height="20" viewBox="0 0 80 42" fill="none">
-          <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(201,168,51,0.65)"/>
-          <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(201,168,51,0.7)"/>
-          <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.7)" strokeWidth="2"/>
-          <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.7)" strokeWidth="2"/>
-        </svg>
-      </div>
-    </div>
-  );
-}
+
 
 // ── Main pack animation component ─────────────────────────────────────────────
 export default function PackAnimation({ onComplete }) {
@@ -345,7 +299,6 @@ export default function PackAnimation({ onComplete }) {
   const [flapRot,    setFlapRot]  = useState(0);
   const [flapOp,     setFlapOp]   = useState(1);
   // Card rise animation
-  const [cardRise,   setCardRise] = useState(0);
   const [glowOp,     setGlowOp]   = useState(0);
   const [flash,      setFlash]    = useState(false);
 
@@ -386,37 +339,17 @@ export default function PackAnimation({ onComplete }) {
       if (t < 1) {
         rafRef.current = requestAnimationFrame(animTear);
       } else {
-        setPhase('rising');
-        soundHookAttach();
-        animRise(performance.now());
+        setPhase('done');
+        setTimeout(() => onComplete?.(), 300);
       }
     };
     rafRef.current = requestAnimationFrame(animTear);
   };
 
-  const animRise = start => {
-    const RISE_MS  = 750;
-    let lastSound  = -1;
-    const tick = now => {
-      const t    = Math.min((now - start) / RISE_MS, 1);
-      const ease = 1 - Math.pow(1 - t, 2.2);
-      setCardRise(ease);
-      const step = Math.floor(t * 5);
-      if (step !== lastSound) { lastSound = step; setTimeout(() => soundCardSlide(), step * 45); }
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        setPhase('done');
-        setTimeout(() => onComplete?.(), 300);
-      }
-    };
-    rafRef.current = requestAnimationFrame(tick);
-  };
 
   useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
 
-  const isTearing = phase === 'tearing';
-  const isRising  = phase === 'rising' || phase === 'done';
+  const isTearing = phase === 'tearing' || phase === 'done';
   const isReady   = phase === 'ready' || phase === 'idle';
 
   return (
@@ -460,9 +393,6 @@ export default function PackAnimation({ onComplete }) {
             transition:'opacity 0.1s',
           }} />
 
-          {/* Cards rising out */}
-          {isRising && <CardStack riseAmount={cardRise} />}
-
           {/* Pack body — positioned at bottom of wrapper */}
           <div
             ref={packRef}
@@ -476,7 +406,7 @@ export default function PackAnimation({ onComplete }) {
               </div>
             )}
 
-            {(isTearing || isRising) && (
+            {isTearing && (
               <>
                 {/* Flap tears upward */}
                 {flapOp > 0 && (
