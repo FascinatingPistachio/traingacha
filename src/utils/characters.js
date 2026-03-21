@@ -1,6 +1,35 @@
 // ── Static known locomotive → character mappings ──────────────────────────────
 // Keyed by exact Wikipedia article title of the REAL locomotive.
 // These are verified manually and are always reliable.
+
+// Generic Wikipedia article titles that should NEVER be treated as character matches.
+// These are categories, general concepts, or disambig pages — not specific locomotives.
+const NEVER_MATCH = new Set([
+  'miniature gauge engines',
+  'narrow gauge locomotives',
+  'miniature railway',
+  'miniature railways',
+  'rack railway',
+  'rack railways',
+  'steam locomotive',
+  'steam locomotives',
+  'diesel locomotive',
+  'diesel locomotives',
+  'electric locomotive',
+  'electric locomotives',
+  'tram engine',
+  'tram engines',
+  'tank locomotive',
+  'tank engine',
+  'tender locomotive',
+  'heritage railway',
+  'heritage railways',
+  'model railway',
+  'model railways',
+  'railway',
+  'locomotives',
+]);
+
 export const STATIC_CHARACTERS = {
   'LBSCR E2 class':           { character:'Thomas',    show:'Thomas & Friends', color:'#1d6fc4', note:'The E2 class was the direct basis for Thomas the Tank Engine', minRarity:'E' },
   'LNER Class A1':            { character:'Gordon',    show:'Thomas & Friends', color:'#1d4ed8', note:'Gordon the Big Engine is based on the LNER Class A1', minRarity:'E' },
@@ -180,5 +209,7 @@ export function applyCharacterRarityBoost(rarity, character) {
 }
 
 export function getCharacterForTrain(title, thomasIndex = {}) {
+  // Block generic category-level article titles
+  if (NEVER_MATCH.has(title.toLowerCase())) return null;
   return thomasIndex[title] ?? STATIC_CHARACTERS[title] ?? null;
 }
