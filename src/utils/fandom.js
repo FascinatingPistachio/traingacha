@@ -1,50 +1,108 @@
-// Direct static.wikia.nocookie.net URLs — no API, no CORS.
-// Each character has multiple filename candidates; the component tries them in order.
-// Paths computed via MD5 hash (standard MediaWiki CDN formula).
-
 const BASE = 'https://static.wikia.nocookie.net/ttte/images';
 const SZ   = 'revision/latest/scale-to-width-down/400';
-const u    = (f) => { const h = [...Array(32)].reduce((a,_,i)=>a,(()=>{const c=[];for(let i=0;i<256;i++){let r=i;for(let j=0;j<8;j++)r=r&1?(r>>>1)^0xedb88320:(r>>>1);c[i]=r;}return c})());return `${BASE}/${[...f].reduce((_,c,i,a,x=f.slice(0,i))=>_,'').slice(0,1)}/${[...f].reduce((_,c,i)=>_,'').slice(0,2)}/${f}/${SZ}`; };
 
-// Pre-computed URL lists (primary + fallback filenames, all hashed)
 export const CHARACTER_IMAGE_URLS = {
-  Thomas:  ['1/1f/Thomas_the_Tank_Engine_CGI.png','5/5c/ThomasCGI.png'],
-  Gordon:  ['0/0c/MainGordonCGI2.png','8/89/GordonCGI.png'],
-  James:   ['b/b7/MainJamesCGI2.png','6/6f/JamesCGI.png'],
-  Henry:   ['8/84/MainHenryCGI2.png','a/a0/HenryCGI.png'],
-  Edward:  ['9/94/MainEdwardCGI2.png','2/2c/EdwardCGI.png'],
-  Percy:   ['7/78/MainPercyCGI2.png','6/62/PercyCGI.png'],
-  Toby:    ['1/17/MainTobyCGI2.png','e/ed/TobyCGI.png'],
-  Duck:    ['5/51/MainDuckCGI2.png','8/87/DuckCGI.png'],
-  Emily:   ['6/67/MainEmilyCGI2.png','7/73/EmilyCGI.png'],
-  Spencer: ['8/83/SpencerCGI2.png','6/65/Spencer_CGI.png','0/03/MainSpencerCGI2.png','7/77/Spencer.png'],
-  Oliver:  ['9/9c/MainOliverCGI2.png','b/b5/OliverCGI.png'],
-  Hiro:    ['c/c7/MainHiroCGI2.png','3/31/HiroCGI.png'],
-  Diesel:  ['c/c3/DieselCGI.png','d/dd/Diesel.png'],
-  Donald:  ['e/ee/DonaldCGI.png','6/6f/Donald.png'],
-  Douglas: ['f/fe/DouglasNewImage.png','0/08/Douglas.png'],
-  Bertie:  ['5/54/BertieCGI.png','5/59/Bertie.png'],
-  Harold:  ['0/0d/HaroldCGI.png','7/75/Harold.png'],
-  Mavis:   ['6/6b/MavisCGI.png','7/7c/Mavis.png'],
-  Daisy:   ['8/84/DaisyCGI.png','c/c1/Daisy.png'],
+  'Thomas': [`${BASE}/1/1f/Thomas_the_Tank_Engine_CGI.png/${SZ}`, `${BASE}/5/5c/ThomasCGI.png/${SZ}`],
+  'Gordon': [`${BASE}/0/0c/MainGordonCGI2.png/${SZ}`, `${BASE}/7/71/MainGordonCGI.png/${SZ}`, `${BASE}/8/89/GordonCGI.png/${SZ}`],
+  'James': [`${BASE}/b/b7/MainJamesCGI2.png/${SZ}`, `${BASE}/d/d7/MainJamesCGI.png/${SZ}`, `${BASE}/6/6f/JamesCGI.png/${SZ}`],
+  'Percy': [`${BASE}/7/78/MainPercyCGI2.png/${SZ}`, `${BASE}/f/f4/MainPercyCGI.png/${SZ}`, `${BASE}/6/62/PercyCGI.png/${SZ}`],
+  'Henry': [`${BASE}/8/84/MainHenryCGI2.png/${SZ}`, `${BASE}/e/ec/MainHenryCGI.png/${SZ}`, `${BASE}/a/a0/HenryCGI.png/${SZ}`],
+  'Edward': [`${BASE}/9/94/MainEdwardCGI2.png/${SZ}`, `${BASE}/5/53/MainEdwardCGI.png/${SZ}`, `${BASE}/2/2c/EdwardCGI.png/${SZ}`],
+  'Toby': [`${BASE}/1/17/MainTobyCGI2.png/${SZ}`, `${BASE}/2/2f/MainTobyCGI.png/${SZ}`, `${BASE}/e/ed/TobyCGI.png/${SZ}`],
+  'Duck': [`${BASE}/5/51/MainDuckCGI2.png/${SZ}`, `${BASE}/a/a0/MainDuckCGI.png/${SZ}`, `${BASE}/8/87/DuckCGI.png/${SZ}`],
+  'Emily': [`${BASE}/6/67/MainEmilyCGI2.png/${SZ}`, `${BASE}/3/3e/MainEmilyCGI.png/${SZ}`, `${BASE}/7/73/EmilyCGI.png/${SZ}`],
+  'Spencer': [`${BASE}/8/83/SpencerCGI2.png/${SZ}`, `${BASE}/6/65/Spencer_CGI.png/${SZ}`, `${BASE}/0/03/MainSpencerCGI2.png/${SZ}`, `${BASE}/2/23/MainSpencerCGI.png/${SZ}`, `${BASE}/6/64/SpencerCGI.png/${SZ}`],
+  'Oliver': [`${BASE}/9/9c/MainOliverCGI2.png/${SZ}`, `${BASE}/f/f0/MainOliverCGI.png/${SZ}`, `${BASE}/b/b5/OliverCGI.png/${SZ}`],
+  'Hiro': [`${BASE}/c/c7/MainHiroCGI2.png/${SZ}`, `${BASE}/c/c9/MainHiroCGI.png/${SZ}`, `${BASE}/3/31/HiroCGI.png/${SZ}`],
+  'Diesel': [`${BASE}/3/3a/MainDieselCGI2.png/${SZ}`, `${BASE}/0/02/MainDieselCGI.png/${SZ}`, `${BASE}/c/c3/DieselCGI.png/${SZ}`],
+  'Donald': [`${BASE}/3/3a/MainDonaldCGI2.png/${SZ}`, `${BASE}/a/a6/MainDonaldCGI.png/${SZ}`, `${BASE}/e/ee/DonaldCGI.png/${SZ}`],
+  'Douglas': [`${BASE}/6/66/MainDouglasCGI2.png/${SZ}`, `${BASE}/3/3f/MainDouglasCGI.png/${SZ}`, `${BASE}/f/fe/DouglasNewImage.png/${SZ}`],
+  'Bertie': [`${BASE}/f/fa/MainBertieCGI2.png/${SZ}`, `${BASE}/8/84/MainBertieCGI.png/${SZ}`, `${BASE}/5/54/BertieCGI.png/${SZ}`],
+  'Harold': [`${BASE}/b/b9/MainHaroldCGI2.png/${SZ}`, `${BASE}/3/39/MainHaroldCGI.png/${SZ}`, `${BASE}/0/0d/HaroldCGI.png/${SZ}`],
+  'Mavis': [`${BASE}/c/c3/MainMavisCGI2.png/${SZ}`, `${BASE}/b/b1/MainMavisCGI.png/${SZ}`, `${BASE}/6/6b/MavisCGI.png/${SZ}`],
+  'Daisy': [`${BASE}/9/92/MainDaisyCGI2.png/${SZ}`, `${BASE}/b/b6/MainDaisyCGI.png/${SZ}`, `${BASE}/8/84/DaisyCGI.png/${SZ}`],
+  'BoCo': [`${BASE}/e/eb/MainBoCoTTTE.png/${SZ}`, `${BASE}/b/bf/BoCoTTTE.png/${SZ}`, `${BASE}/b/bb/MainBoCoCGI.png/${SZ}`],
+  'Rusty': [`${BASE}/e/e2/MainRustyCGI2.png/${SZ}`, `${BASE}/3/31/MainRustyCGI.png/${SZ}`, `${BASE}/9/9b/RustyCGI.png/${SZ}`],
+  'Skarloey': [`${BASE}/7/7c/MainSkarloeyCGI2.png/${SZ}`, `${BASE}/1/12/MainSkarloeyCGI.png/${SZ}`, `${BASE}/5/55/SkarloeyCGI.png/${SZ}`],
+  'Rheneas': [`${BASE}/1/1d/MainRheneasCGI2.png/${SZ}`, `${BASE}/c/cc/MainRheneasCGI.png/${SZ}`, `${BASE}/f/ff/RheneasCGI.png/${SZ}`],
+  'Luke': [`${BASE}/6/62/MainLukeCGI2.png/${SZ}`, `${BASE}/9/9e/MainLukeCGI.png/${SZ}`, `${BASE}/3/3f/LukeCGI.png/${SZ}`],
+  'Victor': [`${BASE}/8/8c/MainVictorCGI2.png/${SZ}`, `${BASE}/0/02/MainVictorCGI.png/${SZ}`, `${BASE}/b/b4/VictorCGI.png/${SZ}`],
+  'Kevin': [`${BASE}/5/5d/MainKevinCGI2.png/${SZ}`, `${BASE}/b/ba/MainKevinCGI.png/${SZ}`, `${BASE}/6/69/KevinCGI.png/${SZ}`],
+  'Charlie': [`${BASE}/6/62/MainCharlieCGI2.png/${SZ}`, `${BASE}/6/6b/MainCharlieCGI.png/${SZ}`, `${BASE}/f/fa/CharlieCGI.png/${SZ}`],
+  'Bash': [`${BASE}/0/03/MainBashCGI2.png/${SZ}`, `${BASE}/6/67/MainBashCGI.png/${SZ}`, `${BASE}/b/b9/BashCGI.png/${SZ}`],
+  'Dash': [`${BASE}/1/1b/MainDashCGI2.png/${SZ}`, `${BASE}/5/5d/MainDashCGI.png/${SZ}`, `${BASE}/b/b5/DashCGI.png/${SZ}`],
+  'Ferdinand': [`${BASE}/4/43/MainFerdinandCGI2.png/${SZ}`, `${BASE}/f/f1/MainFerdinandCGI.png/${SZ}`, `${BASE}/d/d1/FerdinandCGI.png/${SZ}`],
+  'Timothy': [`${BASE}/5/55/MainTimothyCGI2.png/${SZ}`, `${BASE}/0/08/MainTimothyCGI.png/${SZ}`, `${BASE}/c/c8/TimothyCGI.png/${SZ}`],
+  'Ryan': [`${BASE}/f/fa/MainRyanCGI2.png/${SZ}`, `${BASE}/7/7e/MainRyanCGI.png/${SZ}`, `${BASE}/3/37/RyanCGI.png/${SZ}`],
+  'Phillip': [`${BASE}/1/17/MainPhillipCGI2.png/${SZ}`, `${BASE}/3/32/MainPhillipCGI.png/${SZ}`, `${BASE}/b/b6/PhillipCGI.png/${SZ}`],
+  'Nia': [`${BASE}/2/2c/MainNiaCGI2.png/${SZ}`, `${BASE}/6/61/MainNiaCGI.png/${SZ}`, `${BASE}/4/43/NiaCGI.png/${SZ}`],
+  'Rebecca': [`${BASE}/0/01/MainRebeccaCGI2.png/${SZ}`, `${BASE}/2/2e/MainRebeccaCGI.png/${SZ}`, `${BASE}/d/dd/RebeccaCGI.png/${SZ}`],
+  'Caitlin': [`${BASE}/6/6e/MainCaitlinCGI2.png/${SZ}`, `${BASE}/f/f5/MainCaitlinCGI.png/${SZ}`, `${BASE}/5/5e/CaitlinCGI.png/${SZ}`],
+  'Connor': [`${BASE}/2/25/MainConnorCGI2.png/${SZ}`, `${BASE}/c/cd/MainConnorCGI.png/${SZ}`, `${BASE}/b/be/ConnorCGI.png/${SZ}`],
+  'Samson': [`${BASE}/2/26/MainSamsonCGI2.png/${SZ}`, `${BASE}/5/5d/MainSamsonCGI.png/${SZ}`, `${BASE}/0/04/SamsonCGI.png/${SZ}`],
+  'Whiff': [`${BASE}/e/eb/MainWhiffCGI2.png/${SZ}`, `${BASE}/d/dd/MainWhiffCGI.png/${SZ}`, `${BASE}/3/31/WhiffCGI.png/${SZ}`],
+  'Billy': [`${BASE}/0/0e/MainBillyCGI2.png/${SZ}`, `${BASE}/a/a4/MainBillyCGI.png/${SZ}`, `${BASE}/7/74/BillyCGI.png/${SZ}`],
+  'Stanley': [`${BASE}/b/b5/MainStanleyCGI2.png/${SZ}`, `${BASE}/8/8f/MainStanleyCGI.png/${SZ}`, `${BASE}/8/83/StanleyCGI.png/${SZ}`],
+  'Rosie': [`${BASE}/a/ad/MainRosieCGI2.png/${SZ}`, `${BASE}/9/91/MainRosieCGI.png/${SZ}`, `${BASE}/e/e1/RosieCGI.png/${SZ}`],
+  'Flora': [`${BASE}/5/54/MainFloraCGI2.png/${SZ}`, `${BASE}/6/62/MainFloraCGI.png/${SZ}`, `${BASE}/a/a2/FloraCGI.png/${SZ}`],
+  'Molly': [`${BASE}/3/39/MainMollyCGI2.png/${SZ}`, `${BASE}/c/c5/MainMollyCGI.png/${SZ}`, `${BASE}/f/f6/MollyCGI.png/${SZ}`],
+  'Murdoch': [`${BASE}/4/40/MainMurdochCGI2.png/${SZ}`, `${BASE}/0/0b/MainMurdochCGI.png/${SZ}`, `${BASE}/9/94/MurdochCGI.png/${SZ}`],
+  'Arthur': [`${BASE}/9/90/MainArthurCGI2.png/${SZ}`, `${BASE}/6/6f/MainArthurCGI.png/${SZ}`, `${BASE}/0/0e/ArthurCGI.png/${SZ}`],
+  'Dennis': [`${BASE}/a/ac/MainDennisCGI2.png/${SZ}`, `${BASE}/1/13/MainDennisCGI.png/${SZ}`, `${BASE}/9/9d/DennisCGI.png/${SZ}`],
+  'Freddie': [`${BASE}/6/62/MainFreddieCGI2.png/${SZ}`, `${BASE}/f/fa/MainFreddieCGI.png/${SZ}`, `${BASE}/d/d7/FreddieCGI.png/${SZ}`],
+  'Stepney': [`${BASE}/b/b8/MainStepneyCGI2.png/${SZ}`, `${BASE}/8/8a/MainStepneyCGI.png/${SZ}`, `${BASE}/3/3b/StepneyCGI.png/${SZ}`],
+  'Duncan': [`${BASE}/e/e9/MainDuncanCGI2.png/${SZ}`, `${BASE}/1/15/MainDuncanCGI.png/${SZ}`, `${BASE}/d/d4/DuncanCGI.png/${SZ}`],
+  'Millie': [`${BASE}/b/b5/MainMillieCGI2.png/${SZ}`, `${BASE}/9/97/MainMillieCGI.png/${SZ}`, `${BASE}/b/b7/MillieCGI.png/${SZ}`],
+  'Stephen': [`${BASE}/6/60/MainStephenCGI2.png/${SZ}`, `${BASE}/3/30/MainStephenCGI.png/${SZ}`, `${BASE}/e/e4/StephenCGI.png/${SZ}`],
+  'Paxton': [`${BASE}/4/46/MainPaxtonCGI2.png/${SZ}`, `${BASE}/4/4b/MainPaxtonCGI.png/${SZ}`, `${BASE}/8/85/PaxtonCGI.png/${SZ}`],
+  'Winston': [`${BASE}/9/9e/MainWinstonCGI2.png/${SZ}`, `${BASE}/9/99/MainWinstonCGI.png/${SZ}`, `${BASE}/b/b1/WinstonCGI.png/${SZ}`],
+  'Glynn': [`${BASE}/d/d1/MainGlynnCGI2.png/${SZ}`, `${BASE}/e/ed/MainGlynnCGI.png/${SZ}`, `${BASE}/3/39/GlynnCGI.png/${SZ}`],
+  'Pip': [`${BASE}/3/3f/MainPipCGI2.png/${SZ}`, `${BASE}/7/79/MainPipCGI.png/${SZ}`, `${BASE}/6/63/PipCGI.png/${SZ}`],
+  'Emma': [`${BASE}/5/5f/MainEmmaCGI2.png/${SZ}`, `${BASE}/5/57/MainEmmaCGI.png/${SZ}`, `${BASE}/a/a4/EmmaCGI.png/${SZ}`],
+  'Sonny': [`${BASE}/8/81/MainSonnyCGI2.png/${SZ}`, `${BASE}/4/49/MainSonnyCGI.png/${SZ}`, `${BASE}/5/5f/SonnyCGI.png/${SZ}`],
+  'Kana': [`${BASE}/2/28/MainKanaCGI2.png/${SZ}`, `${BASE}/c/cc/MainKanaCGI.png/${SZ}`, `${BASE}/4/44/KanaCGI.png/${SZ}`],
+  'Bruno': [`${BASE}/1/1a/MainBrunoCGI2.png/${SZ}`, `${BASE}/d/d5/MainBrunoCGI.png/${SZ}`, `${BASE}/f/fc/BrunoCGI.png/${SZ}`],
+  'Ashima': [`${BASE}/7/7b/MainAshimaCGI2.png/${SZ}`, `${BASE}/a/af/MainAshimaCGI.png/${SZ}`, `${BASE}/2/2d/AshimaCGI.png/${SZ}`],
+  'Rajiv': [`${BASE}/b/bb/MainRajivCGI2.png/${SZ}`, `${BASE}/d/df/MainRajivCGI.png/${SZ}`, `${BASE}/7/79/RajivCGI.png/${SZ}`],
+  'Carlos': [`${BASE}/b/bd/MainCarlosCGI.png/${SZ}`, `${BASE}/6/60/MainCarlosCGI2.png/${SZ}`, `${BASE}/e/ef/CarlosCGI.png/${SZ}`],
+  'Axel': [`${BASE}/2/23/MainAxelCGI2.png/${SZ}`, `${BASE}/5/52/MainAxelCGI.png/${SZ}`, `${BASE}/c/c3/AxelCGI.png/${SZ}`],
+  'Lorenzo': [`${BASE}/5/59/MainLorenzoCGI2.png/${SZ}`, `${BASE}/d/d1/MainLorenzoCGI.png/${SZ}`, `${BASE}/f/ff/LorenzoCGI.png/${SZ}`],
+  'Yong Bao': [`${BASE}/f/f1/MainYongBaoCGI2.png/${SZ}`, `${BASE}/3/3d/MainYongBaoCGI.png/${SZ}`, `${BASE}/f/fe/YongBaoCGI.png/${SZ}`],
+  'Ivan': [`${BASE}/e/ee/MainIvanCGI2.png/${SZ}`, `${BASE}/a/a5/MainIvanCGI.png/${SZ}`, `${BASE}/5/5f/IvanCGI.png/${SZ}`],
+  'Frankie': [`${BASE}/f/f5/MainFrankieCGI2.png/${SZ}`, `${BASE}/4/48/MainFrankieCGI.png/${SZ}`, `${BASE}/2/2b/FrankieCGI.png/${SZ}`],
+  'Hugo': [`${BASE}/6/66/MainHugoCGI2.png/${SZ}`, `${BASE}/1/18/MainHugoCGI.png/${SZ}`, `${BASE}/a/af/HugoCGI.png/${SZ}`],
+  'Skiff': [`${BASE}/5/5b/MainSkiffCGI2.png/${SZ}`, `${BASE}/1/1c/MainSkiffCGI.png/${SZ}`, `${BASE}/e/e6/SkiffCGI.png/${SZ}`],
+  'Salty': [`${BASE}/d/d5/MainSaltyCGI2.png/${SZ}`, `${BASE}/c/c5/MainSaltyCGI.png/${SZ}`, `${BASE}/d/dc/SaltyCGI.png/${SZ}`],
+  'Harvey': [`${BASE}/9/9f/MainHarveyCGI2.png/${SZ}`, `${BASE}/8/88/MainHarveyCGI.png/${SZ}`, `${BASE}/c/c6/HarveyCGI.png/${SZ}`],
+  'Gator': [`${BASE}/9/91/MainGatorCGI2.png/${SZ}`, `${BASE}/3/3c/MainGatorCGI.png/${SZ}`, `${BASE}/7/75/GatorCGI.png/${SZ}`],
+  'Marion': [`${BASE}/7/79/MainMarionCGI2.png/${SZ}`, `${BASE}/c/c6/MainMarionCGI.png/${SZ}`, `${BASE}/f/f0/MarionCGI.png/${SZ}`],
+  'Belle': [`${BASE}/5/5f/MainBelleCGI2.png/${SZ}`, `${BASE}/d/d0/MainBelleCGI.png/${SZ}`, `${BASE}/0/07/BelleCGI.png/${SZ}`],
+  'Flynn': [`${BASE}/0/04/MainFlynnCGI2.png/${SZ}`, `${BASE}/0/08/MainFlynnCGI.png/${SZ}`, `${BASE}/9/98/FlynnCGI.png/${SZ}`],
+  'Peter Sam': [`${BASE}/c/ca/MainPeterSamCGI2.png/${SZ}`, `${BASE}/b/bc/MainPeterSamCGI.png/${SZ}`, `${BASE}/a/ae/PeterSamCGI.png/${SZ}`],
+  'Sir Handel': [`${BASE}/5/5e/MainSirHandelCGI2.png/${SZ}`, `${BASE}/3/3f/MainSirHandelCGI.png/${SZ}`, `${BASE}/9/90/SirHandelCGI.png/${SZ}`],
+  'Scruff': [`${BASE}/0/0e/MainScruffCGI2.png/${SZ}`, `${BASE}/e/e8/MainScruffCGI.png/${SZ}`, `${BASE}/c/cb/ScruffCGI.png/${SZ}`],
+  'Porter': [`${BASE}/4/4d/MainPorterCGI2.png/${SZ}`, `${BASE}/f/fb/MainPorterCGI.png/${SZ}`, `${BASE}/7/74/PorterCGI.png/${SZ}`],
+  'Vinnie': [`${BASE}/f/fe/MainVinnieCGI2.png/${SZ}`, `${BASE}/4/49/MainVinnieCGI.png/${SZ}`, `${BASE}/9/97/VinnieCGI.png/${SZ}`],
+  'Shane': [`${BASE}/c/c2/MainShaneCGI2.png/${SZ}`, `${BASE}/7/70/MainShaneCGI.png/${SZ}`, `${BASE}/8/86/ShaneCGI.png/${SZ}`],
+  'Theo': [`${BASE}/8/86/MainTheoCGI2.png/${SZ}`, `${BASE}/7/74/MainTheoCGI.png/${SZ}`, `${BASE}/2/25/TheoCGI.png/${SZ}`],
+  'Lexi': [`${BASE}/b/bc/MainLexiCGI2.png/${SZ}`, `${BASE}/6/65/MainLexiCGI.png/${SZ}`, `${BASE}/0/04/LexiCGI.png/${SZ}`],
+  'Merlin': [`${BASE}/1/14/MainMerlinCGI2.png/${SZ}`, `${BASE}/8/89/MainMerlinCGI.png/${SZ}`, `${BASE}/6/65/MerlinCGI.png/${SZ}`],
+  'Hurricane': [`${BASE}/8/88/MainHurricaneCGI2.png/${SZ}`, `${BASE}/5/5c/MainHurricaneCGI.png/${SZ}`, `${BASE}/5/54/HurricaneCGI.png/${SZ}`],
+  'Flying Scotsman': [`${BASE}/a/a7/FlyingScotsman.png/${SZ}`, `${BASE}/1/16/Flying_Scotsman.png/${SZ}`],
+  'Bill': [`${BASE}/d/db/MainBillCGI2.png/${SZ}`, `${BASE}/f/fe/MainBillCGI.png/${SZ}`, `${BASE}/1/1d/BillCGI.png/${SZ}`],
+  'Ben': [`${BASE}/a/ae/MainBenCGI2.png/${SZ}`, `${BASE}/8/80/MainBenCGI.png/${SZ}`, `${BASE}/6/62/BenCGI.png/${SZ}`],
+  'Noor': [`${BASE}/5/57/MainNoorJehanCGI2.png/${SZ}`, `${BASE}/1/1b/MainNoorJehanCGI.png/${SZ}`, `${BASE}/6/6d/NoorJehanCGI.png/${SZ}`],
 };
 
-// Returns the array of URLs to try for a character (first that loads wins)
-export function getCharacterImageUrls(characterName) {
-  const paths = CHARACTER_IMAGE_URLS[characterName];
-  if (!paths) return [];
-  return paths.map(p => `${BASE}/${p}/${SZ}`);
+export function getCharacterImageUrls(name) {
+  return CHARACTER_IMAGE_URLS[name] ?? [];
 }
 
-// Fandom wiki page URLs
 export const CHARACTER_WIKI_URLS = Object.fromEntries(
-  Object.keys(CHARACTER_IMAGE_URLS).map(c => [c, `https://ttte.fandom.com/wiki/${encodeURIComponent(c)}_(T%26F)`])
+  Object.keys(CHARACTER_IMAGE_URLS).map(c => [c, `https://ttte.fandom.com/wiki/${encodeURIComponent(c.replace(/ /g,"_"))}_(T%26F)`])
 );
 
-// Legacy compat — returns first URL synchronously
-export function fetchFandomCharacterImage(characterName) {
-  const urls = getCharacterImageUrls(characterName);
-  return Promise.resolve(urls[0] ?? null);
+export function fetchFandomCharacterImage(name) {
+  return Promise.resolve(CHARACTER_IMAGE_URLS[name]?.[0] ?? null);
 }
-
 export function prewarmFandomCache() {}
