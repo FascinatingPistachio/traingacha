@@ -33,6 +33,8 @@ export async function drawPack(pity = 0) {
   }
 
   if (forceThomas) {
+    // Clear persisted seen list so Thomas loco articles can be retried
+    try { sessionStorage.removeItem('rg_seen'); } catch {}
     // First card guaranteed to be a Thomas character, rest normal
     const [thomasCard, ...rest] = await Promise.all([
       fetchThomasCard(),
