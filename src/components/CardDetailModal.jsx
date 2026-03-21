@@ -87,13 +87,13 @@ function ModalThomasBanner({ character }) {
       position:'absolute', bottom:0, left:0, right:0,
       height:stripH, background:col, zIndex:8,
       display:'flex', alignItems:'center',
-      paddingLeft: circleD * 0.55 + 8,
+      paddingLeft: circleD + 10,
       paddingRight:10,
       boxShadow:'0 -1px 10px rgba(0,0,0,0.45)',
     }}>
-      {/* Portrait circle */}
+      {/* Portrait circle — stays fully within photo area */}
       <div style={{
-        position:'absolute', left:7, bottom: stripH * 0.25,
+        position:'absolute', left:7, bottom:5,
         width:circleD, height:circleD, borderRadius:'50%',
         overflow:'hidden',
         border:'3px solid rgba(255,255,255,0.95)',
@@ -267,7 +267,7 @@ export default function CardDetailModal({ card, count, onClose, isFav=false, onF
           height:INFO_H, padding:'10px 14px', display:'flex', flexDirection:'column', gap:5,
           background:`linear-gradient(to bottom,${bot},#030610)`,
           position:'relative', overflow:'hidden',
-          paddingTop: isTF ? '14px' : undefined,
+          paddingTop: '10px',
         }}>
           {/* Top rule */}
           <div style={{ position:'absolute', top:0, left:10, right:10, height:1,

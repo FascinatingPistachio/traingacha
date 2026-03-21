@@ -42,6 +42,11 @@ export default function HomeScreen({ save, onDaily, onPack, goShop }) {
         <p style={{ color: '#1e3a5a', fontSize: 9, margin: 0, fontFamily: 'monospace' }}>
           {uniqueOwned} UNIQUE CARDS · {save.totalPulls ?? 0} TOTAL PULLS · PITY {save.pity ?? 0}
         </p>
+        {(save.loginStreak ?? 0) > 1 && (
+          <div style={{ marginTop:5, fontSize:8.5, color:'rgba(255,140,0,0.75)', fontFamily:'monospace' }}>
+            🔥 {save.loginStreak}-DAY LOGIN STREAK
+          </div>
+        )}
       </div>
 
       {/* Stats */}

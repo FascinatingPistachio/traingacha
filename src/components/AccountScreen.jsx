@@ -1,3 +1,4 @@
+import { ACHIEVEMENTS } from '../utils/achievements.js';
 import { useState } from 'react';
 import { exportCode } from '../utils/storage.js';
 import { RARITY } from '../constants.js';
@@ -126,6 +127,37 @@ export default function AccountScreen({ save, onReset }) {
         >
           {copied ? '✓ COPIED!' : 'COPY FULL CODE'}
         </button>
+      </div>
+
+
+      {/* Achievements */}
+      <div style={{ background:'#0c1825', border:'1px solid rgba(201,168,51,0.11)', borderRadius:9, padding:'14px', marginBottom:12 }}>
+        <div style={{ fontSize:9, color:'#c9a833', fontFamily:'monospace', letterSpacing:'.15em', marginBottom:10 }}>
+          ACHIEVEMENTS · {(save.achievements?.length ?? 0)}/{ACHIEVEMENTS.length}
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+          {ACHIEVEMENTS.map(ach => {
+            const earned = (save.achievements ?? []).includes(ach.id);
+            return (
+              <div key={ach.id} style={{
+                background: earned ? 'rgba(232,192,64,0.07)' : 'rgba(0,0,0,0.2)',
+                border: `1px solid ${earned ? 'rgba(232,192,64,0.3)' : 'rgba(255,255,255,0.05)'}`,
+                borderRadius:7, padding:'7px 8px',
+                opacity: earned ? 1 : 0.45,
+              }}>
+                <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:2 }}>
+                  <span style={{ fontSize:13 }}>{ach.icon}</span>
+                  <span style={{ fontSize:8.5, color: earned ? '#e8c040' : '#3a5a7a', fontFamily:'monospace', fontWeight:700 }}>
+                    {ach.title}
+                  </span>
+                </div>
+                <div style={{ fontSize:7.5, color: earned ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)', fontFamily:'monospace', lineHeight:1.4 }}>
+                  {ach.desc}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Danger zone */}

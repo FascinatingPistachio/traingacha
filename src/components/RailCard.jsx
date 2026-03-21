@@ -82,13 +82,13 @@ function ThomasBanner({ character, size }) {
       position:'absolute', bottom:0, left:0, right:0,
       height:stripH, background:col, zIndex:8,
       display:'flex', alignItems:'center',
-      paddingLeft: circleD * 0.55 + 6,
+      paddingLeft: circleD + 8,
       paddingRight:6,
       boxShadow:'0 -1px 8px rgba(0,0,0,0.45)',
     }}>
-      {/* Character portrait circle — sits above the strip into the photo */}
+      {/* Character portrait circle — fully contained in photo, left-aligned to banner */}
       <div style={{
-        position:'absolute', left:5, bottom: stripH * 0.25,
+        position:'absolute', left:5, bottom:4,
         width:circleD, height:circleD, borderRadius:'50%',
         overflow:'hidden',
         border:'2.5px solid rgba(255,255,255,0.95)',

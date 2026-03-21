@@ -17,6 +17,8 @@ import { preloadCardImages } from './utils/preload.js';
 import { collectTimerCharges } from './utils/tickets.js';
 import { toggleMute, isMuted, soundClick, soundDailyClaim } from './utils/sounds.js';
 import { prewarmFandomCache } from './utils/fandom.js';
+import { checkNewAchievements, updateLoginStreak } from './utils/achievements.js';
+import AchievementToast from './components/AchievementToast.jsx';
 import { PACK_COST, DAILY_BONUS, TIMER_TICKETS, AD_TICKETS } from './constants.js';
 
 function TopBar({ tickets }) {
@@ -70,12 +72,27 @@ export default function App() {
         const merged = patch ? { ...data, ...patch } : data;
         // Ensure favourites set exists
         if (!merged.favourites) merged.favourites = [];
+        // Update login streak
+        const streakPatch = updateLoginStreak(merged);
+        if (streakPatch) Object.assign(merged, streakPatch);
         if (patch) writeSave(merged);
         setSave(merged);
         setScreen('home');
       } else { setScreen('login'); }
     });
   }, []);
+
+  // Check and queue new achievements after any save update
+  const checkAchievements = useCallback((updatedSave) => {
+    const newOnes = checkNewAchievements(updatedSave);
+    if (newOnes.length) {
+      setAchQueue(q => [...q, ...newOnes]);
+      // Persist earned achievements
+      const earned = new Set(updatedSave.achievements ?? []);
+      newOnes.forEach(a => earned.add(a.id));
+      updateSave({ achievements: [...earned] });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const notify = useCallback((message, type='info') => {
     setToast({ message, type });
@@ -104,7 +121,7 @@ export default function App() {
     const today = new Date().toISOString().split('T')[0];
     if (save.dailyClaimedDate === today) { notify('Already claimed today!', 'warn'); return; }
     soundDailyClaim();
-    updateSave({ tickets: save.tickets + DAILY_BONUS, dailyClaimedDate: today });
+    updateSave({ tickets: save.tickets + DAILY_BONUS, dailyClaimedDate: today, totalDailies: (save.totalDailies ?? 0) + 1 });
     notify(`+${DAILY_BONUS} tickets claimed!`, 'success');
   };
 
@@ -207,6 +224,12 @@ export default function App() {
   return (
     <div style={{ background:'#06101c', minHeight:'100vh', paddingBottom:62 }}>
       {toast && <Toast message={toast.message} type={toast.type} />}
+      {achQueue[0] && (
+        <AchievementToast
+          achievement={achQueue[0]}
+          onDone={() => setAchQueue(q => q.slice(1))}
+        />
+      )}
       <TopBar tickets={save.tickets} />
       <div className="scroll-area" style={{ height:'calc(100vh - 44px - 56px)', overflowY:'auto' }}>
         {screen==='home'       && <HomeScreen       save={save} onDaily={handleDaily} onPack={handlePack} goShop={()=>handleSetScreen('shop')} />}
