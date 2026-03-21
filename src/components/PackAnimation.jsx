@@ -1,359 +1,411 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { soundBolt, soundCrane, soundHookAttach, soundCardSlide, soundPackHover } from '../utils/sounds.js';
+import { soundBolt, soundCrane, soundHookAttach, soundCardSlide, soundPackHover, soundTear } from '../utils/sounds.js';
 
-// Pack is portrait, same proportions as a real booster pack (approx 63×88mm scaled up)
-const PW = 162;
-const PH = 252;
-const BOLT_Y = 22;        // y of bolt row from top
-const BOLT_XS = [28, 62, 100, 134]; // x positions of 4 bolts
+// Pack dimensions — tall portrait, real booster-pack proportions
+const PW = 180;
+const PH = 290;
 
 // ── Particle system ───────────────────────────────────────────────────────────
 function useParticles() {
   const [particles, setParticles] = useState([]);
   const id = useRef(0);
-  const burst = useCallback((x, y, count = 24) => {
-    const cols = ['#c9a833','#e8c040','#fff7c0','#4fa8e8','#b57bee','#ff9d6e','#6fcf7f','#ffffff'];
+
+  const burst = useCallback((x, y, count = 28) => {
+    const cols = ['#c9a833','#e8c040','#fff','#4fa8e8','#b57bee','#aaa','#ddd','#f0f0f0'];
     setParticles(p => [...p, ...Array.from({ length: count }, () => {
       const angle = Math.random() * Math.PI * 2;
-      const spd   = 2 + Math.random() * 5.5;
-      return { id: ++id.current, x, y, vx: Math.cos(angle)*spd, vy: Math.sin(angle)*spd - 2.5,
-        color: cols[Math.floor(Math.random()*cols.length)], size: 2.5 + Math.random()*3.5,
-        life: 1, rot: Math.random()*360, rotV: (Math.random()-0.5)*14,
-        shape: Math.random()>.45 ? 'rect' : 'circle' };
+      const spd   = 2.5 + Math.random() * 5;
+      return {
+        id: ++id.current,
+        x, y,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd - 3,
+        color: cols[Math.floor(Math.random() * cols.length)],
+        size: 2 + Math.random() * 3.5,
+        life: 1,
+        rot: Math.random() * 360,
+        rotV: (Math.random() - 0.5) * 14,
+        shape: Math.random() > 0.4 ? 'rect' : 'circle',
+      };
     })]);
   }, []);
+
   useEffect(() => {
     if (!particles.length) return;
     const raf = requestAnimationFrame(() => setParticles(p =>
-      p.map(q => ({ ...q, x:q.x+q.vx, y:q.y+q.vy, vy:q.vy+0.2, vx:q.vx*.97, life:q.life-.024, rot:q.rot+q.rotV }))
-       .filter(q => q.life > 0)
+      p.map(q => ({
+        ...q,
+        x: q.x + q.vx, y: q.y + q.vy,
+        vy: q.vy + 0.22, vx: q.vx * 0.97,
+        life: q.life - 0.022,
+        rot: q.rot + q.rotV,
+      })).filter(q => q.life > 0)
     ));
     return () => cancelAnimationFrame(raf);
   }, [particles]);
+
   return { particles, burst };
 }
 
 function Particles({ particles }) {
   return (
-    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:50, overflow:'hidden' }}>
+    <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:60, overflow:'hidden' }}>
       {particles.map(p => (
         <div key={p.id} style={{
           position:'absolute', left:p.x, top:p.y,
-          width: p.shape==='circle' ? p.size : p.size*1.5,
-          height: p.shape==='circle' ? p.size : p.size*.6,
-          background: p.color, borderRadius: p.shape==='circle' ? '50%' : 2,
+          width: p.shape==='circle' ? p.size : p.size * 1.6,
+          height: p.shape==='circle' ? p.size : p.size * 0.6,
+          background: p.color,
+          borderRadius: p.shape==='circle' ? '50%' : 1,
           transform: `rotate(${p.rot}deg)`,
-          opacity: Math.min(p.life*2, 1), willChange:'transform',
+          opacity: Math.min(p.life * 2, 1),
+          willChange: 'transform',
         }} />
       ))}
     </div>
   );
 }
 
-// ── Pack visual ───────────────────────────────────────────────────────────────
-function PackBody({ boltsRemoved = 0, clipTop = false, clipBottom = false, style = {} }) {
-  const clip = clipTop
-    ? `polygon(0 0, ${PW}px 0, ${PW}px ${BOLT_Y + 18}px, 0 ${BOLT_Y + 18}px)`
-    : clipBottom
-    ? `polygon(0 ${BOLT_Y + 18}px, ${PW}px ${BOLT_Y + 18}px, ${PW}px ${PH}px, 0 ${PH}px)`
-    : 'none';
-
+// ── Wikipedia globe SVG ───────────────────────────────────────────────────────
+function WikiGlobe({ size = 80 }) {
   return (
-    <div style={{ width:PW, height:PH, position:'absolute', inset:0, clipPath:clip, ...style }}>
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="50" r="46" fill="white" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" />
+      {/* Puzzle piece seams — simplified representation */}
+      <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,0.12)" strokeWidth="1" strokeDasharray="4 3" />
+      {/* Vertical meridian */}
+      <ellipse cx="50" cy="50" rx="16" ry="46" fill="none" stroke="rgba(0,0,0,0.18)" strokeWidth="1.2" />
+      {/* Horizontal parallels */}
+      <ellipse cx="50" cy="50" rx="46" ry="16" fill="none" stroke="rgba(0,0,0,0.18)" strokeWidth="1.2" />
+      <ellipse cx="50" cy="30" rx="36" ry="10" fill="none" stroke="rgba(0,0,0,0.14)" strokeWidth="1" />
+      <ellipse cx="50" cy="70" rx="36" ry="10" fill="none" stroke="rgba(0,0,0,0.14)" strokeWidth="1" />
+      {/* W letter in centre */}
+      <text x="50" y="56" textAnchor="middle" fontFamily="serif" fontSize="22" fontWeight="bold" fill="#222" letterSpacing="-1">W</text>
+      {/* Puzzle piece cut lines */}
+      <path d="M 50 4 C 55 4 57 8 57 12 C 57 16 54 18 54 18 L 54 30" stroke="rgba(0,0,0,0.1)" strokeWidth="1" fill="none"/>
+      <path d="M 4 50 C 4 45 8 43 12 43 C 16 43 18 46 18 46 L 30 46" stroke="rgba(0,0,0,0.1)" strokeWidth="1" fill="none"/>
+    </svg>
+  );
+}
+
+// ── CC BY-SA badge ────────────────────────────────────────────────────────────
+function CCBadge() {
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:3 }}>
       <div style={{
-        width:PW, height:PH, borderRadius:10, overflow:'hidden',
-        background:'linear-gradient(165deg,#101f38 0%,#06101c 50%,#0b1a2c 100%)',
-        border:'2px solid rgba(201,168,51,0.65)',
-        boxShadow:'0 0 40px rgba(201,168,51,0.18), 0 8px 48px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)',
-        position:'relative',
+        display:'flex', alignItems:'center',
+        background:'rgba(0,0,0,0.08)', borderRadius:3, overflow:'hidden',
+        border:'1px solid rgba(0,0,0,0.2)',
       }}>
-        {/* Foil diagonal texture */}
-        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
-          background:'repeating-linear-gradient(110deg,transparent,transparent 18px,rgba(201,168,51,0.03) 18px,rgba(201,168,51,0.03) 19px)' }} />
-        {/* Specular sheen */}
-        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
-          background:'linear-gradient(120deg,transparent 28%,rgba(255,255,255,0.04) 46%,rgba(255,255,255,0.09) 50%,rgba(255,255,255,0.04) 54%,transparent 72%)' }} />
-
-        {/* TOP SEAL STRIP with bolts */}
-        <div style={{
-          position:'absolute', top:0, left:0, right:0, height: BOLT_Y + 18,
-          background:'linear-gradient(135deg,#182a45,#0d1e34)',
-          borderBottom:'2px solid rgba(201,168,51,0.45)',
-          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end',
-          paddingBottom:4,
-        }}>
-          {/* Brand name in seal */}
-          <div style={{ fontSize:7.5, color:'rgba(201,168,51,0.85)', fontFamily:'monospace', fontWeight:700, letterSpacing:'.3em', marginBottom:4 }}>
-            RAIL GACHA
-          </div>
-          {/* Bolts row */}
-          <div style={{ position:'absolute', bottom:6, left:0, right:0, display:'flex', justifyContent:'space-around', paddingLeft:14, paddingRight:14 }}>
-            {BOLT_XS.map((x, i) => (
-              <div key={i} style={{
-                width:10, height:10, borderRadius:2,
-                background: i < boltsRemoved ? 'transparent' : 'rgba(201,168,51,0.75)',
-                border: i < boltsRemoved ? '1px dashed rgba(201,168,51,0.2)' : '1px solid rgba(201,168,51,0.5)',
-                boxShadow: i < boltsRemoved ? 'none' : 'inset 0 1px 0 rgba(255,255,255,0.3)',
-                transition:'all 0.2s',
-                display:'flex', alignItems:'center', justifyContent:'center',
-              }}>
-                {i >= boltsRemoved && (
-                  <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(100,80,30,0.8)' }} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Main art area */}
-        <div style={{ position:'absolute', top:BOLT_Y+20, left:12, right:12, bottom:44,
-          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8 }}>
-          {/* Glow halo */}
-          <div style={{ position:'absolute', width:88, height:88, borderRadius:'50%', background:'radial-gradient(circle,rgba(201,168,51,0.18) 0%,transparent 70%)' }} />
-          {/* Clean locomotive silhouette in CSS (no emoji) */}
-          <svg width="80" height="42" viewBox="0 0 80 42" fill="none" style={{ position:'relative', zIndex:1, filter:'drop-shadow(0 0 12px rgba(201,168,51,0.7))' }}>
-            {/* Boiler/body */}
-            <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(201,168,51,0.85)" />
-            {/* Cab */}
-            <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(201,168,51,0.9)" />
-            {/* Cab window */}
-            <rect x="54" y="13" width="7" height="7" rx="1" fill="rgba(6,16,28,0.8)" />
-            {/* Smokebox */}
-            <rect x="4" y="17" width="12" height="12" rx="2" fill="rgba(160,130,40,0.9)" />
-            {/* Chimney */}
-            <rect x="12" y="8" width="5" height="10" rx="1" fill="rgba(201,168,51,0.8)" />
-            {/* Smoke puff */}
-            <circle cx="14" cy="5" r="3" fill="rgba(201,168,51,0.3)" />
-            <circle cx="18" cy="3" r="2" fill="rgba(201,168,51,0.2)" />
-            {/* Wheels */}
-            <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.9)" strokeWidth="2" />
-            <circle cx="20" cy="34" r="2" fill="rgba(201,168,51,0.7)" />
-            <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.9)" strokeWidth="2" />
-            <circle cx="40" cy="34" r="2" fill="rgba(201,168,51,0.7)" />
-            <circle cx="60" cy="35" r="5" fill="none" stroke="rgba(201,168,51,0.8)" strokeWidth="1.5" />
-            {/* Connecting rod */}
-            <line x1="20" y1="34" x2="40" y2="34" stroke="rgba(201,168,51,0.6)" strokeWidth="2" />
-            {/* Buffer */}
-            <rect x="0" y="22" width="6" height="6" rx="1" fill="rgba(201,168,51,0.6)" />
-          </svg>
-          <div style={{ fontSize:8.5, color:'rgba(201,168,51,0.7)', fontFamily:'monospace', fontWeight:700, letterSpacing:'.1em', position:'relative', zIndex:1 }}>
-            TRAINS OF THE WORLD
-          </div>
-          <div style={{ fontSize:6.5, color:'rgba(201,168,51,0.3)', fontFamily:'monospace', letterSpacing:'.14em' }}>
-            WIKIPEDIA EDITION
-          </div>
-        </div>
-
-        {/* Bottom strip */}
-        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:42,
-          background:'linear-gradient(to top,rgba(0,0,0,0.55),transparent)',
-          borderTop:'1px solid rgba(201,168,51,0.15)',
-          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2 }}>
-          <div style={{ fontSize:8, color:'rgba(201,168,51,0.65)', fontFamily:'monospace', fontWeight:700, letterSpacing:'.12em' }}>5 CARDS INSIDE</div>
-          <div style={{ fontSize:6.5, color:'rgba(201,168,51,0.28)', fontFamily:'monospace' }}>INFO FROM WIKIPEDIA</div>
-        </div>
+        <div style={{ background:'rgba(0,0,0,0.15)', padding:'1px 4px', fontSize:6.5, fontFamily:'sans-serif', fontWeight:700, color:'#333' }}>cc</div>
+        <div style={{ padding:'1px 4px', fontSize:6, fontFamily:'sans-serif', color:'#444', letterSpacing:'.05em' }}>BY-SA</div>
       </div>
     </div>
   );
 }
 
-// ── Spanner tool ─────────────────────────────────────────────────────────────
-function Spanner({ x, y, spinning }) {
+// ── Serrated edge (zigzag) ────────────────────────────────────────────────────
+// Creates an SVG zigzag path for top or bottom of pack
+function SerratedEdge({ width, position = 'top', color = '#f0f0f0', bgColor = '#06101c' }) {
+  const teeth  = 18;
+  const toothW = width / teeth;
+  const h      = 10;
+
+  // Build zigzag path
+  let d = '';
+  if (position === 'top') {
+    d = `M 0 ${h}`;
+    for (let i = 0; i <= teeth; i++) {
+      const x = i * toothW;
+      d += i % 2 === 0
+        ? ` L ${x} ${h}`
+        : ` L ${x - toothW / 2} 0 L ${x} ${h}`;
+    }
+    d += ` L ${width} ${h} L ${width} 0 L 0 0 Z`;
+  } else {
+    d = `M 0 0`;
+    for (let i = 0; i <= teeth; i++) {
+      const x = i * toothW;
+      d += i % 2 === 0
+        ? ` L ${x} 0`
+        : ` L ${x - toothW / 2} ${h} L ${x} 0`;
+    }
+    d += ` L ${width} 0 L ${width} ${h} L 0 ${h} Z`;
+  }
+
+  return (
+    <svg width={width} height={h} viewBox={`0 0 ${width} ${h}`} style={{ display:'block', flexShrink:0 }}>
+      {/* Background fill — hides the page behind teeth gaps */}
+      <rect width={width} height={h} fill={bgColor} />
+      {/* The serrated edge in pack colour */}
+      <path d={d} fill={color} />
+    </svg>
+  );
+}
+
+// ── Full pack visual ──────────────────────────────────────────────────────────
+// clipTop = show only the top flap; clipBottom = show only the body below tear
+function PackVisual({ showTop = true, showBottom = true, style = {}, onHover }) {
+  const FLAP_H = 44; // height of top flap section before main artwork
+
+  // We compose the pack as three vertical slices:
+  // [serrated top edge] [top flap] [main art + bottom] [serrated bottom edge]
+  const bodyStyle = {
+    width: PW,
+    position: 'absolute', left: 0, right: 0,
+    ...style,
+  };
+
+  // The full pack height including serrated edges
+  const fullH = PH;
+
+  return (
+    <div style={{ width:PW, height:fullH, position:'relative', ...style }}>
+
+      {/* ── TOP SERRATED EDGE ── */}
+      {showTop && (
+        <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:4 }}>
+          <SerratedEdge width={PW} position="top" color="#e8e8e8" bgColor="#06101c" />
+        </div>
+      )}
+
+      {/* ── PACK BODY ── */}
+      <div style={{
+        position:'absolute',
+        top: showTop ? 9 : 0,
+        bottom: showBottom ? 9 : 0,
+        left:0, right:0,
+        overflow:'hidden',
+        background: 'linear-gradient(175deg, #f5f5f0 0%, #e8e8e2 30%, #f0efea 60%, #e5e4de 100%)',
+        boxShadow: showTop && showBottom
+          ? '2px 0 12px rgba(0,0,0,0.4), -2px 0 12px rgba(0,0,0,0.4), 0 4px 24px rgba(0,0,0,0.5)'
+          : '0 4px 24px rgba(0,0,0,0.3)',
+      }}
+        onMouseEnter={onHover}
+      >
+        {/* Subtle foil vertical sheen stripes */}
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+          background:'repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(255,255,255,0.18) 18px, rgba(255,255,255,0.18) 19px)' }} />
+        {/* Main sheen highlight */}
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+          background:'linear-gradient(160deg, rgba(255,255,255,0.5) 0%, transparent 40%, rgba(255,255,255,0.15) 65%, transparent 100%)' }} />
+
+        {/* Rail Gacha branding strip at top */}
+        <div style={{
+          padding:'7px 12px 6px',
+          borderBottom:'1px solid rgba(0,0,0,0.1)',
+          background:'linear-gradient(135deg, rgba(0,0,0,0.07), rgba(0,0,0,0.04))',
+          textAlign:'center',
+        }}>
+          <div style={{ fontSize:8, fontFamily:"'Courier New',monospace", fontWeight:700, color:'rgba(0,0,0,0.55)', letterSpacing:'.22em' }}>
+            RAIL GACHA
+          </div>
+          <div style={{ fontSize:6, fontFamily:"'Courier New',monospace", color:'rgba(0,0,0,0.35)', letterSpacing:'.15em', marginTop:1 }}>
+            BOOSTER PACK · 5 CARDS
+          </div>
+        </div>
+
+        {/* Wikipedia globe — centrepiece */}
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'16px 12px 10px' }}>
+          <WikiGlobe size={82} />
+          {/* Wikipedia wordmark */}
+          <div style={{ marginTop:10, textAlign:'center' }}>
+            <div style={{
+              fontSize:18, fontFamily:"'Linux Libertine','Georgia','Times New Roman',serif",
+              fontWeight:400, color:'#111', letterSpacing:'.04em', lineHeight:1,
+            }}>
+              W<span style={{ fontSize:14 }}>IKIPEDIA</span>
+            </div>
+            <div style={{ fontSize:9, fontFamily:"'Linux Libertine','Georgia',serif", color:'#444', marginTop:2, fontStyle:'italic', letterSpacing:'.02em' }}>
+              The Free Encyclopedia
+            </div>
+          </div>
+        </div>
+
+        {/* Horizontal rule */}
+        <div style={{ margin:'0 14px', height:1, background:'rgba(0,0,0,0.12)', flexShrink:0 }} />
+
+        {/* Train silhouette */}
+        <div style={{ display:'flex', justifyContent:'center', padding:'10px 0 6px' }}>
+          <svg width="110" height="52" viewBox="0 0 120 60" fill="none">
+            {/* Track */}
+            <line x1="0" y1="54" x2="120" y2="54" stroke="rgba(0,0,0,0.2)" strokeWidth="1.5"/>
+            <line x1="10" y1="54" x2="10" y2="58" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5"/>
+            <line x1="30" y1="54" x2="30" y2="58" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5"/>
+            <line x1="50" y1="54" x2="50" y2="58" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5"/>
+            <line x1="70" y1="54" x2="70" y2="58" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5"/>
+            <line x1="90" y1="54" x2="90" y2="58" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5"/>
+            <line x1="110" y1="54" x2="110" y2="58" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5"/>
+            {/* Boiler */}
+            <rect x="12" y="22" width="68" height="24" rx="4" fill="rgba(0,0,0,0.55)"/>
+            {/* Cab */}
+            <rect x="70" y="16" width="28" height="30" rx="3" fill="rgba(0,0,0,0.6)"/>
+            {/* Cab window */}
+            <rect x="75" y="20" width="10" height="8" rx="1" fill="rgba(255,255,255,0.6)"/>
+            {/* Smokebox */}
+            <rect x="6" y="26" width="14" height="16" rx="2" fill="rgba(0,0,0,0.65)"/>
+            {/* Chimney */}
+            <rect x="16" y="12" width="6" height="12" rx="1" fill="rgba(0,0,0,0.6)"/>
+            <rect x="14" y="10" width="10" height="4" rx="1" fill="rgba(0,0,0,0.55)"/>
+            {/* Steam puff */}
+            <circle cx="18" cy="6" r="4" fill="rgba(0,0,0,0.12)"/>
+            <circle cx="23" cy="4" r="3" fill="rgba(0,0,0,0.09)"/>
+            <circle cx="27" cy="6" r="2.5" fill="rgba(0,0,0,0.07)"/>
+            {/* Dome */}
+            <ellipse cx="42" cy="21" rx="7" ry="5" fill="rgba(0,0,0,0.58)"/>
+            {/* Drive wheels */}
+            <circle cx="28" cy="46" r="8" fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="2.5"/>
+            <circle cx="28" cy="46" r="2.5" fill="rgba(0,0,0,0.5)"/>
+            <circle cx="48" cy="46" r="8" fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="2.5"/>
+            <circle cx="48" cy="46" r="2.5" fill="rgba(0,0,0,0.5)"/>
+            <circle cx="68" cy="46" r="8" fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="2.5"/>
+            <circle cx="68" cy="46" r="2.5" fill="rgba(0,0,0,0.5)"/>
+            {/* Pony wheel */}
+            <circle cx="84" cy="47" r="6" fill="none" stroke="rgba(0,0,0,0.45)" strokeWidth="2"/>
+            {/* Connecting rods */}
+            <line x1="28" y1="46" x2="48" y2="46" stroke="rgba(0,0,0,0.5)" strokeWidth="2"/>
+            <line x1="48" y1="46" x2="68" y2="46" stroke="rgba(0,0,0,0.5)" strokeWidth="2"/>
+            {/* Buffer */}
+            <rect x="0" y="30" width="8" height="8" rx="1" fill="rgba(0,0,0,0.5)"/>
+          </svg>
+        </div>
+
+        {/* Bottom info */}
+        <div style={{ padding:'8px 14px 10px', borderTop:'1px solid rgba(0,0,0,0.1)', marginTop:'auto' }}>
+          <CCBadge />
+          <div style={{ fontSize:6.5, fontFamily:"'Courier New',monospace", color:'rgba(0,0,0,0.4)', lineHeight:1.6 }}>
+            Content is available under CC BY-SA 4.0
+          </div>
+        </div>
+      </div>
+
+      {/* ── BOTTOM SERRATED EDGE ── */}
+      {showBottom && (
+        <div style={{ position:'absolute', bottom:0, left:0, right:0, zIndex:4 }}>
+          <SerratedEdge width={PW} position="bottom" color="#e8e8e2" bgColor="#06101c" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Card stack emerging from torn top ────────────────────────────────────────
+function CardStack({ riseAmount }) {
+  const capped = Math.min(riseAmount, 1);
   return (
     <div style={{
       position:'absolute',
-      left: x - 10, top: y - 10,
-      width:20, height:20,
-      display:'flex', alignItems:'center', justifyContent:'center',
-      fontSize:16,
-      animation: spinning ? 'boltSpin 0.35s linear 2' : 'none',
-      zIndex:10,
-      filter:'drop-shadow(0 0 4px rgba(201,168,51,0.8))',
-      transformOrigin:'center center',
+      left:'50%',
+      transform:`translateX(-50%)`,
+      bottom: 9 + (1 - capped) * 60,
+      zIndex:2,
+      pointerEvents:'none',
     }}>
-      🔧
-    </div>
-  );
-}
-
-// ── Crane ─────────────────────────────────────────────────────────────────────
-function Crane({ cableH, hookY, attached }) {
-  return (
-    <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', top:0, zIndex:6, pointerEvents:'none' }}>
-      {/* Cable */}
-      <div style={{ width:2, background:'rgba(201,168,51,0.7)', height:cableH, margin:'0 auto',
-        boxShadow:'0 0 3px rgba(201,168,51,0.4)' }} />
-      {/* Hook */}
+      {/* Fanned card backs */}
+      {[4,3,2,1,0].map(i => (
+        <div key={i} style={{
+          position:'absolute',
+          bottom: i * 3,
+          left: '50%',
+          transform:`translateX(-50%) rotate(${(i-2)*1.5}deg)`,
+          width: PW - 28,
+          height: 12,
+          background:`rgba(14,31,53,${0.9-i*0.1})`,
+          border:`1px solid rgba(201,168,51,${0.5-i*0.07})`,
+          borderRadius:3,
+          boxShadow:'0 2px 8px rgba(0,0,0,0.3)',
+        }} />
+      ))}
+      {/* Top card */}
       <div style={{
-        marginLeft:-8, marginTop:-1,
-        width:18, height:22,
-        border:'3px solid rgba(201,168,51,0.9)',
-        borderTop:'none',
-        borderRadius:'0 0 14px 14px',
-        boxShadow:'0 0 6px rgba(201,168,51,0.5)',
-        animation: attached ? 'hookSwing 0.6s ease-in-out infinite' : 'none',
-        transformOrigin:'top center',
-      }} />
-      {/* Hook tip */}
-      <div style={{ marginLeft:8, marginTop:-3, width:3, height:8,
-        background:'rgba(201,168,51,0.9)', borderRadius:'0 0 2px 2px' }} />
-    </div>
-  );
-}
-
-// ── Card stack emerging ───────────────────────────────────────────────────────
-function CardStack({ craneY, cardCount = 5 }) {
-  return (
-    <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', top:craneY + 28, zIndex:5, pointerEvents:'none' }}>
-      {/* Cable to cards */}
-      <div style={{ width:1, height:16, background:'rgba(201,168,51,0.5)', margin:'0 auto' }} />
-      {/* Fanned cards */}
-      <div style={{ position:'relative', width:PW-24, height:50 }}>
-        {Array.from({ length: Math.min(cardCount, 5) }).map((_, i) => (
-          <div key={i} style={{
-            position:'absolute', bottom:0, left:'50%',
-            transform:`translateX(-50%) rotate(${(i-2)*4}deg) translateY(${i*-3}px)`,
-            width:PW-24, height:48,
-            background:`rgba(13,31,53,${0.9-i*0.1})`,
-            border:`1.5px solid rgba(201,168,51,${0.55-i*0.08})`,
-            borderRadius:6,
-            boxShadow:'0 -2px 8px rgba(201,168,51,0.2)',
-          }} />
-        ))}
-        {/* Top card shows loco silhouette */}
-        <div style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)',
-          width:PW-24, height:48, background:'linear-gradient(165deg,#0d1f35,#060f1c)',
-          border:'1.5px solid rgba(201,168,51,0.6)', borderRadius:6, zIndex:5,
-          display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <svg width="36" height="20" viewBox="0 0 80 42" fill="none">
-            <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(201,168,51,0.7)" />
-            <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(201,168,51,0.75)" />
-            <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.8)" strokeWidth="2" />
-            <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.8)" strokeWidth="2" />
-          </svg>
-        </div>
+        position:'relative', zIndex:5,
+        width: PW - 28, height:55,
+        background:'linear-gradient(165deg,#0d1f35,#060f1c)',
+        border:'2px solid rgba(201,168,51,0.55)',
+        borderRadius:7,
+        display:'flex', alignItems:'center', justifyContent:'center',
+        boxShadow:'0 -4px 18px rgba(201,168,51,0.25), 0 4px 12px rgba(0,0,0,0.5)',
+      }}>
+        <svg width="36" height="20" viewBox="0 0 80 42" fill="none">
+          <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(201,168,51,0.65)"/>
+          <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(201,168,51,0.7)"/>
+          <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.7)" strokeWidth="2"/>
+          <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(201,168,51,0.7)" strokeWidth="2"/>
+        </svg>
       </div>
     </div>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main pack animation component ─────────────────────────────────────────────
 export default function PackAnimation({ onComplete }) {
-  // phases: idle → unscrewing → crane_descend → lifting → card_hoist → done
-  const [phase,       setPhase]      = useState('idle');
-  const [boltsDone,   setBoltsDone]  = useState(0);
-  const [activeBolt,  setActiveBolt] = useState(-1);  // which bolt is being unscrewed
-  const [cableH,      setCableH]     = useState(0);   // crane cable length px
-  const [hookY,       setHookY]      = useState(0);
-  const [lidY,        setLidY]       = useState(0);
-  const [lidRot,      setLidRot]     = useState(0);
-  const [lidOp,       setLidOp]      = useState(1);
-  const [cardY,       setCardY]      = useState(0);   // crane hoist position for cards
-  const [glowOp,      setGlowOp]     = useState(0);
-  const [flash,       setFlash]      = useState(false);
-  const { particles, burst }         = useParticles();
+  const [phase,      setPhase]    = useState('idle');
+  // Torn flap animation
+  const [flapY,      setFlapY]    = useState(0);
+  const [flapRot,    setFlapRot]  = useState(0);
+  const [flapOp,     setFlapOp]   = useState(1);
+  // Card rise animation
+  const [cardRise,   setCardRise] = useState(0);
+  const [glowOp,     setGlowOp]   = useState(0);
+  const [flash,      setFlash]    = useState(false);
+
+  const { particles, burst } = useParticles();
   const packRef  = useRef(null);
   const rafRef   = useRef(null);
 
-  // Target cable length to reach bolt row
-  const TARGET_CABLE = 160;
-
+  // Start bobbing once loaded
   useEffect(() => {
-    // Small delay before bobbing starts
-    const t = setTimeout(() => setPhase('ready'), 300);
+    const t = setTimeout(() => setPhase('ready'), 250);
     return () => clearTimeout(t);
   }, []);
 
-  // Unscrew sequence when user taps
   const handleTap = () => {
     if (phase !== 'ready' && phase !== 'idle') return;
-    setPhase('unscrewing');
-    unscrewNext(0);
-  };
+    setPhase('tearing');
+    soundTear();
 
-  const unscrewNext = (boltIdx) => {
-    if (boltIdx >= BOLT_XS.length) {
-      // All bolts done — bring in the crane
-      setTimeout(() => startCrane(), 200);
-      return;
-    }
-    setActiveBolt(boltIdx);
-    soundBolt();
-    // Particles at bolt position
-    const rect = packRef.current?.getBoundingClientRect();
-    if (rect) {
-      const bx = rect.left + BOLT_XS[boltIdx];
-      const by = rect.top  + BOLT_Y + 10;
-      burst(bx, by, 8);
-    }
-    setTimeout(() => {
-      setBoltsDone(boltIdx + 1);
-      setActiveBolt(-1);
-      setTimeout(() => unscrewNext(boltIdx + 1), 120);
-    }, 420);
-  };
-
-  const startCrane = () => {
-    setPhase('crane_descend');
-    soundCrane();
-    const start = performance.now();
-    const DESCEND_DUR = 900;
-    const tick = (now) => {
-      const t    = Math.min((now - start) / DESCEND_DUR, 1);
-      const ease = 1 - Math.pow(1 - t, 2.5);
-      setCableH(TARGET_CABLE * ease);
-      setHookY(TARGET_CABLE * ease);
-      if (t < 1) { rafRef.current = requestAnimationFrame(tick); }
-      else {
-        soundHookAttach();
-        setTimeout(() => startLift(), 350);
-      }
-    };
-    rafRef.current = requestAnimationFrame(tick);
-  };
-
-  const startLift = () => {
-    setPhase('lifting');
+    // Screen flash
     setFlash(true);
-    setTimeout(() => setFlash(false), 160);
-    const rect = packRef.current?.getBoundingClientRect();
-    if (rect) burst(rect.left + PW/2, rect.top + BOLT_Y + 18, 32);
+    setTimeout(() => setFlash(false), 150);
     setGlowOp(1);
 
-    const start = performance.now();
-    const LIFT_DUR = 550;
-    const tick = (now) => {
-      const t    = Math.min((now - start) / LIFT_DUR, 1);
-      const ease = 1 - Math.pow(1 - t, 2.8);
-      // Lid flies off, crane cable shortens a bit then extends for cards
-      setLidY(-220 * ease);
-      setLidRot(-16 * ease);
-      setLidOp(1 - ease);
-      setCableH(TARGET_CABLE - 30 * ease);
-      if (t < 1) { rafRef.current = requestAnimationFrame(tick); }
-      else {
-        setPhase('card_hoist');
-        setTimeout(() => hoistCards(), 200);
+    // Burst at tear line
+    const rect = packRef.current?.getBoundingClientRect();
+    if (rect) burst(rect.left + PW / 2, rect.top + 10, 35);
+
+    const start   = performance.now();
+    const TEAR_MS = 400;
+
+    const animTear = now => {
+      const t    = Math.min((now - start) / TEAR_MS, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      setFlapY(-230 * ease);
+      setFlapRot(-20 * ease);
+      setFlapOp(Math.max(0, 1 - ease * 1.6));
+
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(animTear);
+      } else {
+        setPhase('rising');
+        soundHookAttach();
+        animRise(performance.now());
       }
     };
-    rafRef.current = requestAnimationFrame(tick);
+    rafRef.current = requestAnimationFrame(animTear);
   };
 
-  const hoistCards = () => {
-    const start = performance.now();
-    const HOIST_DUR = 800;
-    let lastSound = -1;
-    const tick = (now) => {
-      const t    = Math.min((now - start) / HOIST_DUR, 1);
+  const animRise = start => {
+    const RISE_MS  = 750;
+    let lastSound  = -1;
+    const tick = now => {
+      const t    = Math.min((now - start) / RISE_MS, 1);
       const ease = 1 - Math.pow(1 - t, 2.2);
-      // Crane rises up pulling cards
-      const newCableH = TARGET_CABLE + 60 * ease;
-      setCableH(newCableH);
-      setCardY(newCableH);
+      setCardRise(ease);
       const step = Math.floor(t * 5);
-      if (step !== lastSound) { lastSound = step; setTimeout(() => soundCardSlide(), step * 40); }
-      if (t < 1) { rafRef.current = requestAnimationFrame(tick); }
-      else {
+      if (step !== lastSound) { lastSound = step; setTimeout(() => soundCardSlide(), step * 45); }
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
         setPhase('done');
         setTimeout(() => onComplete?.(), 300);
       }
@@ -363,93 +415,109 @@ export default function PackAnimation({ onComplete }) {
 
   useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
 
-  const showFull    = phase === 'idle' || phase === 'ready' || phase === 'unscrewing';
-  const showCrane   = phase === 'crane_descend' || phase === 'lifting' || phase === 'card_hoist' || phase === 'done';
-  const showLid     = phase === 'lifting';
-  const showCards   = phase === 'card_hoist' || phase === 'done';
-  const showBottom  = phase === 'lifting' || phase === 'card_hoist' || phase === 'done';
+  const isTearing = phase === 'tearing';
+  const isRising  = phase === 'rising' || phase === 'done';
+  const isReady   = phase === 'ready' || phase === 'idle';
 
   return (
     <>
       <Particles particles={particles} />
-      {flash && <div style={{ position:'fixed', inset:0, background:'rgba(201,168,51,0.2)', pointerEvents:'none', zIndex:49 }} />}
+
+      {/* Screen flash on tear */}
+      {flash && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(255,255,255,0.25)', pointerEvents:'none', zIndex:49 }} />
+      )}
 
       <div
         onClick={handleTap}
         style={{
-          minHeight:'calc(100vh - 100px)',
-          display:'flex', flexDirection:'column',
-          alignItems:'center', justifyContent:'center',
-          gap:20, padding:'20px 16px',
-          cursor: phase==='ready' || phase==='idle' ? 'pointer' : 'default',
-          userSelect:'none',
+          minHeight: 'calc(100vh - 100px)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: 20, padding: '20px 16px',
+          cursor: isReady ? 'pointer' : 'default',
+          userSelect: 'none',
         }}
       >
-        {/* Hint text */}
+        {/* Instruction */}
         <p style={{
-          fontSize:10, color:'rgba(201,168,51,0.55)', fontFamily:'monospace',
-          letterSpacing:'.2em', margin:0,
-          opacity: showFull ? 1 : 0, transition:'opacity 0.3s',
-          animation: phase==='ready' ? 'pulse 1.8s ease-in-out infinite' : 'none',
+          fontSize: 10, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace',
+          letterSpacing: '.22em', margin: 0,
+          opacity: isReady ? 1 : 0, transition: 'opacity 0.3s',
+          animation: phase === 'ready' ? 'pulse 2s ease-in-out infinite' : 'none',
         }}>
-          {phase==='idle' ? 'FETCHING CARDS…' : phase==='unscrewing' ? 'REMOVING BOLTS…' : 'TAP TO OPEN PACK'}
+          {phase === 'idle' ? 'FETCHING CARDS…' : '▲  TAP TO OPEN  ▲'}
         </p>
 
-        {/* Pack container — 260px tall to give crane room above */}
-        <div style={{ position:'relative', width:PW, height:PH + 120, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+        {/* Pack wrapper — extra height for card rise above pack */}
+        <div style={{ position:'relative', width:PW, height:PH + 100 }}>
+
           {/* Background glow */}
-          <div style={{ position:'absolute', inset:-60, borderRadius:'50%',
-            background:'radial-gradient(circle,rgba(201,168,51,0.28) 0%,transparent 65%)',
-            opacity:glowOp, pointerEvents:'none', transition:'opacity 0.1s', filter:'blur(4px)' }} />
+          <div style={{
+            position:'absolute', inset:-50, borderRadius:'50%',
+            background:'radial-gradient(circle, rgba(220,220,200,0.12) 0%, transparent 68%)',
+            opacity:glowOp, pointerEvents:'none', filter:'blur(4px)',
+            transition:'opacity 0.1s',
+          }} />
 
-          {/* Crane */}
-          {showCrane && <Crane cableH={cableH} hookY={hookY} attached={phase==='card_hoist' || phase==='done'} />}
+          {/* Cards rising out */}
+          {isRising && <CardStack riseAmount={cardRise} />}
 
-          {/* Cards being hoisted */}
-          {showCards && <CardStack craneY={cardY} />}
-
-          {/* Pack body */}
-          <div ref={packRef} style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', width:PW, height:PH }}>
-            {/* Full pack (pre-crane) */}
-            {showFull && (
-              <div style={{ position:'relative', width:PW, height:PH, animation: phase==='ready' ? 'packBob 2.2s ease-in-out infinite' : 'none' }}>
-                <PackBody boltsRemoved={boltsDone} />
-                {/* Active spanner */}
-                {activeBolt >= 0 && (
-                  <Spanner x={BOLT_XS[activeBolt]} y={BOLT_Y + 10} spinning />
-                )}
+          {/* Pack body — positioned at bottom of wrapper */}
+          <div
+            ref={packRef}
+            style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', width:PW, height:PH }}
+          >
+            {isReady && (
+              <div style={{ animation: phase === 'ready' ? 'packBob 2.5s ease-in-out infinite' : 'none' }}>
+                <PackVisual
+                  onHover={() => soundPackHover()}
+                />
               </div>
             )}
 
-            {/* Split view during/after crane */}
-            {showCrane && !showFull && (
+            {(isTearing || isRising) && (
               <>
-                {/* Lid flying off */}
-                {showLid && (
-                  <div style={{ position:'absolute', inset:0, zIndex:3,
-                    transform:`translateY(${lidY}px) rotate(${lidRot}deg)`,
-                    opacity:lidOp, transformOrigin:'50% 0%' }}>
-                    <PackBody boltsRemoved={4} clipTop />
+                {/* Flap tears upward */}
+                {flapOp > 0 && (
+                  <div style={{
+                    position:'absolute', inset:0,
+                    transform:`translateY(${flapY}px) rotate(${flapRot}deg)`,
+                    opacity: flapOp,
+                    transformOrigin: '50% 0%',
+                    zIndex:5,
+                  }}>
+                    {/* Only the top portion — clipped to FLAP_H px */}
+                    <div style={{ overflow:'hidden', height:55 }}>
+                      <PackVisual showBottom={false} />
+                    </div>
                   </div>
                 )}
-                {/* Bottom half stays */}
-                {showBottom && (
-                  <div style={{ position:'absolute', inset:0, zIndex:2 }}>
-                    <PackBody boltsRemoved={4} clipBottom />
+
+                {/* Lower body stays */}
+                <div style={{ position:'absolute', inset:0, zIndex:3 }}>
+                  <div style={{ overflow:'hidden', position:'absolute', top:45, left:0, right:0, bottom:0 }}>
+                    <PackVisual showTop={false} style={{ marginTop:-45 }} />
                   </div>
-                )}
+                </div>
               </>
             )}
           </div>
         </div>
 
         {/* Loading dots */}
-        {(phase === 'idle' || phase === 'ready') && (
-          <div style={{ display:'flex', gap:5, alignItems:'center', opacity:0.5 }}>
+        {isReady && (
+          <div style={{ display:'flex', gap:5, alignItems:'center', opacity:0.45 }}>
             {[0,1,2].map(i => (
-              <div key={i} style={{ width:5, height:5, borderRadius:'50%', background:'rgba(201,168,51,0.5)', animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite` }} />
+              <div key={i} style={{
+                width:5, height:5, borderRadius:'50%',
+                background:'rgba(255,255,255,0.45)',
+                animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite`,
+              }} />
             ))}
-            <span style={{ fontSize:8.5, color:'rgba(201,168,51,0.4)', fontFamily:'monospace', marginLeft:4 }}>fetching from wikipedia…</span>
+            <span style={{ fontSize:8.5, color:'rgba(255,255,255,0.35)', fontFamily:'monospace', marginLeft:4 }}>
+              fetching from wikipedia…
+            </span>
           </div>
         )}
       </div>
