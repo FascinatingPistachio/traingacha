@@ -1,5 +1,12 @@
-// Achievement unlock notification — slides in from top, auto-dismisses.
+import { useEffect } from 'react';
+
 export default function AchievementToast({ achievement, onDone }) {
+  // Auto-dismiss after 4 seconds
+  useEffect(() => {
+    const t = setTimeout(onDone, 4000);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
   return (
     <div
       onClick={onDone}
@@ -17,11 +24,19 @@ export default function AchievementToast({ achievement, onDone }) {
         maxWidth:340, minWidth:240,
       }}
     >
+      {/* Progress bar at bottom */}
+      <div style={{ position:'absolute', bottom:0, left:0, right:0, height:2,
+        background:'rgba(232,192,64,0.15)', borderRadius:'0 0 12px 12px', overflow:'hidden' }}>
+        <div style={{ height:'100%', background:'rgba(232,192,64,0.5)',
+          animation:'ach-drain 4s linear forwards' }} />
+      </div>
+
       <div style={{ fontSize:26, lineHeight:1, filter:'drop-shadow(0 0 6px rgba(232,192,64,0.6))' }}>
         {achievement.icon}
       </div>
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:8, color:'rgba(232,192,64,0.6)', fontFamily:'monospace', letterSpacing:'.18em', marginBottom:2 }}>
+        <div style={{ fontSize:8, color:'rgba(232,192,64,0.6)', fontFamily:'monospace',
+          letterSpacing:'.18em', marginBottom:2 }}>
           ACHIEVEMENT UNLOCKED
         </div>
         <div style={{ fontSize:13, color:'#e8c040', fontFamily:'Georgia,serif', fontWeight:700, marginBottom:1 }}>

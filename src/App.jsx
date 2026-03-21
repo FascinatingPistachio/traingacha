@@ -6,19 +6,27 @@ import ShopScreen       from './components/ShopScreen.jsx';
 import OpeningScreen    from './components/OpeningScreen.jsx';
 import CollectionScreen from './components/CollectionScreen.jsx';
 import AccountScreen    from './components/AccountScreen.jsx';
+import BattleScreen     from './components/BattleScreen.jsx';
 import BottomNav        from './components/BottomNav.jsx';
 import Toast            from './components/Toast.jsx';
 import Footer           from './components/Footer.jsx';
 import AchievementToast from './components/AchievementToast.jsx';
 
-import { drawPack, updatePity }                             from './utils/gacha.js';
-import { loadSave, writeSave, deleteSave, makeFreshSave }   from './utils/storage.js';
-import { preloadCardImages }                                from './utils/preload.js';
-import { collectTimerCharges }                              from './utils/tickets.js';
-import { toggleMute, isMuted, soundClick, soundDailyClaim } from './utils/sounds.js';
-import { prewarmFandomCache }                               from './utils/fandom.js';
-import { checkNewAchievements, updateLoginStreak }          from './utils/achievements.js';
+import { drawPack, updatePity }                              from './utils/gacha.js';
+import { loadSave, writeSave, deleteSave, makeFreshSave }    from './utils/storage.js';
+import { preloadCardImages }                                 from './utils/preload.js';
+import { collectTimerCharges }                               from './utils/tickets.js';
+import { toggleMute, isMuted, soundClick, soundDailyClaim }  from './utils/sounds.js';
+import { prewarmFandomCache }                                from './utils/fandom.js';
+import { checkNewAchievements, updateLoginStreak }           from './utils/achievements.js';
+import { generateCardStats }                                 from './utils/stats.js';
 import { PACK_COST, DAILY_BONUS, TIMER_TICKETS, AD_TICKETS } from './constants.js';
+
+// Migrate old cards that don't have stats yet
+function migrateCard(card) {
+  if (card.stats) return card;
+  return { ...card, stats: generateCardStats(card.title ?? card.id ?? '', card.views ?? 0, card.rarity ?? 'C') };
+}
 
 function TopBar({ tickets }) {
   const [muted, setMuted] = useState(isMuted());
@@ -70,12 +78,21 @@ export default function App() {
     prewarmFandomCache();
     loadSave().then(data => {
       if (data) {
+        // Migrate old save format + add stats to all existing cards
+        const migratedCollection = Object.fromEntries(
+          Object.entries(data.collection ?? {}).map(([id, c]) => [id, migrateCard(c)])
+        );
         let merged = {
           ...data,
+          collection:   migratedCollection,
           favourites:   data.favourites   ?? [],
           achievements: data.achievements ?? [],
           totalDailies: data.totalDailies ?? 0,
           loginStreak:  data.loginStreak  ?? 0,
+          // New pity state (3-tier)
+          pityState:    data.pityState    ?? { rare:0, epic:0, legend: data.pity ?? 0 },
+          battleWins:   data.battleWins   ?? 0,
+          raidWins:     data.raidWins     ?? 0,
         };
         const timerPatch  = collectTimerCharges(merged);
         const streakPatch = updateLoginStreak(merged);
@@ -88,7 +105,7 @@ export default function App() {
         setScreen('login');
       }
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line
 
   const notify = useCallback((message, type = 'info') => {
     setToast({ message, type });
@@ -103,7 +120,6 @@ export default function App() {
     });
   }, []);
 
-  // Check achievements against a save snapshot and queue any new ones
   const triggerAchievements = useCallback((snap) => {
     const newOnes = checkNewAchievements(snap);
     if (!newOnes.length) return;
@@ -116,16 +132,19 @@ export default function App() {
   }, []);
 
   const handleLogin = (username, imported = null) => {
-    const now  = Date.now();
+    const now   = Date.now();
     const today = new Date().toISOString().split('T')[0];
-    const data = imported ?? {
+    const data  = imported ?? {
       ...makeFreshSave(username),
-      timerCharges: 0, timerLastCollect: now, lastAdWatch: null,
-      favourites: [], achievements: [],
-      loginStreak: 1, lastLoginDate: today, totalDailies: 0,
+      timerCharges:0, timerLastCollect:now, lastAdWatch:null,
+      favourites:[], achievements:[],
+      loginStreak:1, lastLoginDate:today, totalDailies:0,
+      pityState:{ rare:0, epic:0, legend:0 },
+      battleWins:0, raidWins:0,
     };
     if (!data.favourites)   data.favourites   = [];
     if (!data.achievements) data.achievements = [];
+    if (!data.pityState)    data.pityState    = { rare:0, epic:0, legend: data.pity ?? 0 };
     writeSave(data);
     setSave(data);
     setScreen('home');
@@ -154,12 +173,13 @@ export default function App() {
     if (save.tickets < PACK_COST) { notify('Not enough tickets!', 'error'); return; }
     if (busy) return;
     setBusy(true);
-    // Build set of already-owned article IDs so duplicates are avoided
     const ownedIds = new Set(Object.keys(save.collection ?? {}));
-    const promise = drawPack(save.pity ?? 0, ownedIds).then(async cards => {
-      if (!cards?.length) return [];
+    const promise  = drawPack(save.pity ?? 0, ownedIds, save.pityState ?? {}).then(async ({ cards, newPityState }) => {
+      if (!cards?.length) return { cards: [], newPityState };
       preloadCardImages(cards).catch(() => {});
-      return cards;
+      // Update pity state right away (non-blocking)
+      updateSave({ pityState: newPityState, pity: updatePity(save.pity ?? 0, cards) });
+      return { cards, newPityState };
     });
     setCardsPromise(promise);
     updateSave({ tickets: save.tickets - PACK_COST });
@@ -170,7 +190,8 @@ export default function App() {
   const handleOpeningDone = async () => {
     if (cardsPromise) {
       try {
-        const cards = await cardsPromise;
+        const result = await cardsPromise;
+        const cards  = result?.cards ?? result ?? [];
         if (cards?.length) {
           setSave(prev => {
             const collection = { ...prev.collection };
@@ -184,7 +205,6 @@ export default function App() {
             const next = {
               ...prev,
               collection,
-              pity:       updatePity(prev.pity ?? 0, cards),
               totalPulls: (prev.totalPulls ?? 0) + cards.length,
             };
             writeSave(next);
@@ -222,6 +242,25 @@ export default function App() {
     notify(`+${AD_TICKETS} tickets! Thanks for watching.`, 'success');
   };
 
+  // Battle/Raid reward handler
+  const handleBattleEarn = (tickets, draftedCard = null) => {
+    setSave(prev => {
+      const collection = { ...prev.collection };
+      if (draftedCard) {
+        const id = draftedCard.id ?? `draft_${Date.now()}`;
+        const card = { ...draftedCard, id, count:1, addedAt:new Date().toISOString(),
+          stats: draftedCard.stats ?? generateCardStats(draftedCard.title ?? '', draftedCard.views ?? 0, draftedCard.rarity ?? 'C') };
+        collection[id] = card;
+        notify(`📦 Drafted: ${draftedCard.title}!`, 'success');
+      }
+      if (tickets > 0) notify(`+${tickets} 🎫 battle reward!`, 'success');
+      const next = { ...prev, tickets: prev.tickets + tickets, collection,
+        battleWins: (prev.battleWins ?? 0) + (tickets > 1 ? 1 : 0) };
+      writeSave(next);
+      return next;
+    });
+  };
+
   const handleSetScreen = (s) => {
     if (s === 'shop' && save) {
       const patch = collectTimerCharges(save);
@@ -232,7 +271,7 @@ export default function App() {
 
   const handleReset = () => { deleteSave(); setSave(null); setScreen('login'); };
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   if (screen === 'loading') return <LoadingScreen />;
   if (screen === 'login')   return <LoginScreen onLogin={handleLogin} />;
 
@@ -247,7 +286,7 @@ export default function App() {
         {toast && <Toast message={toast.message} type={toast.type} />}
         {achToast}
         <TopBar tickets={save.tickets} />
-        <OpeningScreen cardsPromise={cardsPromise} onDone={handleOpeningDone} />
+        <OpeningScreen cardsPromise={cardsPromise?.then?.(r => r?.cards ?? r) ?? cardsPromise} onDone={handleOpeningDone} />
         <BottomNav screen="opening" setScreen={handleSetScreen} />
       </div>
     );
@@ -263,6 +302,7 @@ export default function App() {
         {screen === 'shop'       && <ShopScreen       save={save} onPack={handlePack} onClaimCharges={handleClaimCharges} onWatchAd={handleWatchAd} />}
         {screen === 'collection' && <CollectionScreen collection={save.collection} favourites={favSet} onToggleFav={handleToggleFav} />}
         {screen === 'account'    && <AccountScreen    save={save} onReset={handleReset} />}
+        {screen === 'battle'     && <BattleScreen     collection={save.collection} onEarn={handleBattleEarn} />}
         <Footer />
       </div>
       <BottomNav screen={screen} setScreen={handleSetScreen} />

@@ -57,3 +57,12 @@ export function updateLoginStreak(save) {
     : 1;
   return { lastLoginDate: today, loginStreak: streak };
 }
+
+// Battle & Raid achievements (appended)
+export const BATTLE_ACHIEVEMENTS = [
+  { id:'first_win',    icon:'⚔️',  title:'First Blood',    desc:'Win your first battle',          check:s => (s.battleWins??0) >= 1 },
+  { id:'win_5',        icon:'🏅', title:'Veteran',         desc:'Win 5 battles',                  check:s => (s.battleWins??0) >= 5 },
+  { id:'beat_ivan',    icon:'🔩', title:'Iron Crusher',    desc:'Beat Iron Ivan',                  check:s => (s.battleWins??0) >= 1 }, // simplified
+  { id:'first_raid',   icon:'🔥', title:'Raider',          desc:'Complete your first raid',        check:s => (s.raidWins??0) >= 1 },
+  { id:'raid_3',       icon:'💀', title:'Raid Boss Hunter',desc:'Clear 3 raids',                  check:s => (s.raidWins??0) >= 3 },
+];

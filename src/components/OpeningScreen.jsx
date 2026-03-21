@@ -16,7 +16,9 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
     setPhase('waiting');
     try {
       const result = await cardsPromise;
-      setCards(result ?? []);
+      // drawPack now returns {cards, newPityState} — handle both old and new format
+      const cardArr = Array.isArray(result) ? result : (result?.cards ?? []);
+      setCards(cardArr);
     } catch { setCards([]); }
     setPhase('revealing');
   };

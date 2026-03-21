@@ -1,30 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { RARITY } from '../constants.js';
-import { getCharacterImageUrls, fetchFandomCharacterImage } from '../utils/fandom.js';
+import { fetchFandomCharacterImage } from '../utils/fandom.js';
+import { STAT_CONFIG, statPercent } from '../utils/stats.js';
 import '../styles/cards.css';
 
-// ── Exact 2:3 ratio (600:900) at three display sizes ─────────────────────────
+// Card sizes (2:3 ratio)
 const SZ = {
-  sm: { w:128, h:192,  img:86,  name:9,    meta:7,   badge:6,   stars:9,  bp:'6px 7px'  },
-  md: { w:160, h:240,  img:108, name:11,   meta:7.5, badge:7,   stars:11, bp:'7px 9px'  },
-  lg: { w:192, h:288,  img:130, name:13,   meta:8,   badge:8,   stars:12, bp:'9px 11px' },
+  sm: { w:130, h:195, imgH:108, nameFs:8.5,  metaFs:6.5, badgeFs:5.5, bp:'5px 6px' },
+  md: { w:162, h:243, imgH:132, nameFs:10.5, metaFs:7.5, badgeFs:6.5, bp:'7px 8px' },
+  lg: { w:200, h:300, imgH:164, nameFs:12.5, metaFs:8.5, badgeFs:7.5, bp:'9px 11px' },
 };
+const STARS     = { C:1, R:2, E:3, L:4, M:4 };
+const HDR_COLOR = { C:'#1a2a3a', R:'#071426', E:'#130620', L:'#1a0e00', M:'#02020a' };
 
-const STARS = { C:1, R:2, E:3, L:4, M:4 };
-const FRAME = {
-  C:{ top:'#1a2a3a', bot:'#0f1e2d' },
-  R:{ top:'#081828', bot:'#03101e' },
-  E:{ top:'#160a24', bot:'#0a0416' },
-  L:{ top:'#1e1000', bot:'#120a00' },
-  M:{ top:'#020205', bot:'#010103' },
-};
-const BADGE_BG = {
-  C:'rgba(10,20,30,0.92)', R:'rgba(4,14,28,0.92)',
-  E:'rgba(18,6,32,0.92)',  L:'rgba(22,10,0,0.92)', M:'rgba(0,0,8,0.96)',
-};
-
-// ── Image component — handles cached images correctly ─────────────────────────
-function CardImage({ src, alt }) {
+// ── Card image with loading/error states ────────────────────────────────────
+function CardImage({ src, alt, height }) {
   const [status, setStatus] = useState('loading');
   const ref = useRef(null);
   useEffect(() => { setStatus('loading'); }, [src]);
@@ -33,316 +23,259 @@ function CardImage({ src, alt }) {
     if (img?.complete) setStatus(img.naturalWidth > 0 ? 'loaded' : 'error');
   }, [src]);
   return (
-    <div style={{ width:'100%', height:'100%', position:'relative', overflow:'hidden', background:'#ffffff' }}>
+    <div style={{ width:'100%', height, position:'relative', overflow:'hidden', background:'#e8e8e8' }}>
       {status === 'loading' && (
-        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(240,240,240,0.5)' }}>
-          <div className="spinner" style={{ borderColor:'rgba(0,0,0,0.12)', borderTopColor:'rgba(0,0,0,0.45)' }} />
+        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(240,240,240,0.6)' }}>
+          <div className="spinner" style={{ borderColor:'rgba(0,0,0,0.1)', borderTopColor:'rgba(0,0,0,0.4)' }} />
         </div>
       )}
       {status === 'error' && (
-        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4, background:'#f5f5f5' }}>
-          <svg width="28" height="16" viewBox="0 0 80 42" fill="none">
-            <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(0,0,0,0.12)"/>
-            <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(0,0,0,0.12)"/>
-            <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(0,0,0,0.12)" strokeWidth="2"/>
-            <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(0,0,0,0.12)" strokeWidth="2"/>
+        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'#dde2e7' }}>
+          <svg width="32" height="18" viewBox="0 0 80 42" fill="none">
+            <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(0,0,0,0.15)"/>
+            <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(0,0,0,0.1)"/>
+            <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth="2"/>
+            <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth="2"/>
           </svg>
-          <span style={{ fontSize:6, color:'rgba(255,255,255,0.15)', fontFamily:'monospace' }}>NO IMAGE</span>
         </div>
       )}
       <img ref={ref} src={src} alt={alt}
         onLoad={() => setStatus('loaded')} onError={() => setStatus('error')}
         style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
-          opacity:status==='loaded'?1:0, transition:'opacity 0.3s' }}
-      />
+          opacity:status==='loaded'?1:0, transition:'opacity 0.3s' }} />
     </div>
   );
 }
 
-// ── Fallback for characters with no loadable image ───────────────────────────
-function CharacterFallback({ character, size }) {
-  const col    = character.color ?? '#4b5563';
-  const initials = character.character.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  // Gradient using the character's colour
-  const light  = col + 'cc';
+// ── Thomas & Friends character portrait ─────────────────────────────────────
+function CharBadge({ character, size }) {
+  const d = size === 'sm' ? 28 : size === 'md' ? 34 : 42;
+  const [url, setUrl] = useState(null);
+  const [ok, setOk]   = useState(false);
+  const [fail, setFail] = useState(false);
+  useEffect(() => {
+    let c = false;
+    fetchFandomCharacterImage(character.character, false)
+      .then(u => { if (!c) setUrl(u); }).catch(() => {});
+    return () => { c = true; };
+  }, [character.character]);
+  const handleErr = () => {
+    if (url?.startsWith('/characters/')) {
+      setUrl(null); setOk(false);
+      fetchFandomCharacterImage(character.character, true).then(u => setUrl(u));
+    } else setFail(true);
+  };
+  const col = character.color ?? '#1565c0';
+  const init = character.character.charAt(0);
+  const showImg = url && !fail;
   return (
-    <div style={{
-      width:'100%', height:'100%',
-      background:`radial-gradient(circle at 35% 35%, ${light}, ${col})`,
-      display:'flex', alignItems:'center', justifyContent:'center',
-      flexDirection:'column', gap:1,
-    }}>
-      <span style={{
-        fontSize: size * 0.38,
-        fontWeight: 900,
-        color: 'rgba(255,255,255,0.95)',
-        fontFamily: 'Georgia, serif',
-        lineHeight: 1,
-        textShadow: '0 1px 4px rgba(0,0,0,0.5)',
-        letterSpacing: '-0.02em',
-      }}>
-        {initials}
+    <div style={{ width:d, height:d, borderRadius:'50%', overflow:'hidden', background:col,
+      border:'2px solid rgba(255,255,255,0.9)', boxShadow:'0 2px 10px rgba(0,0,0,0.55)',
+      flexShrink:0, position:'relative', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      {!showImg && (
+        <span style={{ fontSize:d*0.38, fontWeight:900, color:'rgba(255,255,255,0.9)', fontFamily:'Georgia,serif' }}>
+          {init}
+        </span>
+      )}
+      {showImg && (
+        <img src={url} alt={character.character}
+          onLoad={() => setOk(true)} onError={handleErr}
+          style={{ width:'100%', height:'100%', objectFit:'cover', position:'absolute', inset:0,
+            opacity:ok?1:0, transition:'opacity 0.3s' }} />
+      )}
+    </div>
+  );
+}
+
+// ── Stat mini bar (shown on card) ────────────────────────────────────────────
+function MiniStat({ cfg, value, fontSize }) {
+  const pct = statPercent(cfg.key, value);
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:3 }}>
+      <span style={{ fontSize, lineHeight:1, width:11, textAlign:'center' }}>{cfg.icon}</span>
+      <div style={{ flex:1, height:3, background:'rgba(255,255,255,0.1)', borderRadius:2, overflow:'hidden' }}>
+        <div style={{ width:`${pct}%`, height:'100%', background:cfg.color,
+          boxShadow:`0 0 4px ${cfg.color}88`, borderRadius:2 }} />
+      </div>
+      <span style={{ fontSize:fontSize-0.5, color:'rgba(255,255,255,0.55)', fontFamily:'monospace',
+        width:26, textAlign:'right', lineHeight:1 }}>
+        {value > 999 ? `${Math.round(value/1000)}k` : value}
       </span>
     </div>
   );
 }
 
-// ── Thomas & Friends character banner ─────────────────────────────────────────
-function ThomasBanner({ character, size }) {
-  const [imgUrl,      setImgUrl]      = useState(null);
-  const [imgOk,       setImgOk]       = useState(false);
-  const [localFailed, setLocalFailed] = useState(false); // local file 404'd, try API
-
-  // On mount: fetch image (local path or cached API result)
-  useEffect(() => {
-    let cancelled = false;
-    fetchFandomCharacterImage(character.character, false)
-      .then(url => { if (!cancelled) setImgUrl(url); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [character.character]);
-
-  // If the local file 404s, re-fetch forcing the API (skipping local)
-  useEffect(() => {
-    if (!localFailed) return;
-    let cancelled = false;
-    fetchFandomCharacterImage(character.character, true)
-      .then(url => { if (!cancelled) setImgUrl(url); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [localFailed, character.character]);
-
-  const handleError = () => {
-    if (imgUrl?.startsWith('/characters/')) {
-      // Local file missing — escalate to API
-      setImgOk(false);
-      setImgUrl(null);
-      setLocalFailed(true);
-    } else {
-      // API URL also failed — show colour fallback
-      setImgUrl('__fail__');
-    }
-  };
-
-  const currentUrl = (!imgUrl || imgUrl === '__fail__') ? null : imgUrl;
-
-  const sz      = SZ[size];
-  // Keep banner thin so it doesn't eat the train photo
-  const stripH  = size === 'sm' ? 20 : size === 'md' ? 24 : 28;
-  const circleD = size === 'sm' ? 28 : size === 'md' ? 34 : 40;
-  const col     = character.color ?? '#1d6fc4';
-
+// ── Holographic shimmer overlay (Legendary+) ─────────────────────────────────
+function HoloOverlay({ rarity }) {
+  if (rarity !== 'L' && rarity !== 'M') return null;
+  const isM = rarity === 'M';
   return (
-    <div style={{
-      position:'absolute', bottom:0, left:0, right:0,
-      height:stripH, background:col, zIndex:8,
-      display:'flex', alignItems:'center',
-      paddingLeft: circleD + 8,
-      paddingRight:6,
-      boxShadow:'0 -1px 8px rgba(0,0,0,0.45)',
-    }}>
-      {/* Character portrait circle — fully contained in photo, left-aligned to banner */}
-      <div style={{
-        position:'absolute', left:5, bottom:4,
-        width:circleD, height:circleD, borderRadius:'50%',
-        overflow:'hidden',
-        border:'2.5px solid rgba(255,255,255,0.95)',
-        background:col,
-        boxShadow:'0 2px 12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.2)',
-        zIndex:9, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
-      }}>
-        {currentUrl && !imgOk && (
-          // Show initial letter while image loads
-          <span style={{ position:'absolute', fontSize:circleD*0.36, fontWeight:800, color:'rgba(255,255,255,0.4)', fontFamily:'monospace' }}>
-            {character.character.charAt(0)}
-          </span>
-        )}
-        {currentUrl ? (
-          <img src={currentUrl} alt={character.character}
-            onLoad={() => setImgOk(true)}
-            onError={handleError}
-            style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
-              opacity:imgOk?1:0, transition:'opacity 0.35s' }}
-          />
-        ) : null}
-        {/* Colour fallback: API returned nothing, or URL 404'd, or still loading */}
-        {!currentUrl && (
-          <CharacterFallback character={character} size={circleD} />
-        )}
-      </div>
-
-      {/* Text */}
-      <div style={{ flex:1, minWidth:0, overflow:'hidden' }}>
-        <div style={{ fontSize:size==='sm'?5:6.5, color:'rgba(255,255,255,0.75)', fontFamily:'monospace', fontWeight:700,
-          letterSpacing:'.1em', lineHeight:1, marginBottom:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-          {character.show.toUpperCase()}
-        </div>
-        <div style={{ fontSize:size==='sm'?8:10, color:'#fff', fontFamily:'Georgia,serif', fontWeight:700, lineHeight:1,
-          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-          {character.character}
-        </div>
-      </div>
-    </div>
+    <div className={isM ? 'holo-mythic' : 'holo-legendary'}
+      style={{ position:'absolute', inset:0, zIndex:20, pointerEvents:'none', borderRadius:8 }} />
   );
 }
 
 // ── Main RailCard ─────────────────────────────────────────────────────────────
 export default function RailCard({
-  card, size='md', count=0, dimmed=false, revealed=false, onClick=null, isFav=false, onFav=null,
+  card, size='md', count=0, dimmed=false, onClick=null, isFav=false, onFav=null,
+  showAllStats=false,
 }) {
   const rs     = RARITY[card.rarity] ?? RARITY.C;
   const sz     = SZ[size];
-  const isL    = card.rarity === 'L';
-  const isE    = card.rarity === 'E';
-  const isM    = card.rarity === 'M';
-  const star   = STARS[card.rarity] ?? 1;
-  const { top, bot } = FRAME[card.rarity] ?? FRAME.C;
-  const infoH  = sz.h - sz.img;
-  const isTF   = !!(card.character && card.character.show === 'Thomas & Friends');
+  const stars  = STARS[card.rarity] ?? 1;
+  const isHigh = card.rarity === 'L' || card.rarity === 'M';
+  const isTF   = card.character?.show === 'Thomas & Friends';
+  const hdrH   = size === 'sm' ? 13 : size === 'md' ? 15 : 17;
+  const infoH  = sz.h - sz.imgH - hdrH;
+  const stats  = card.stats;
 
-  const classes = ['tc', `r-${card.rarity}`, revealed?'revealed':'', onClick?'clickable':''].filter(Boolean).join(' ');
+  // How many stat bars to show in card footer
+  const statsToShow = size === 'sm' ? 3 : size === 'md' ? 4 : 5;
 
   return (
-    <div className={classes} onClick={onClick} style={{
-      width:sz.w, height:sz.h,
-      background:`linear-gradient(175deg,${top},${bot})`,
-      border:`2px solid ${dimmed?'rgba(255,255,255,0.05)':rs.border}`,
-      opacity:dimmed?0.17:1,
-      boxShadow: isM ? undefined : dimmed ? 'none'
-        : `0 0 18px ${rs.glow}, 0 4px 22px rgba(0,0,0,0.65), inset 0 0 0 1px rgba(255,255,255,0.04)`,
-      // Enforce aspect ratio
-      aspectRatio: '2/3',
-    }}>
-      {(isL||isE||isM) && !dimmed && <div className={`tc-foil tc-foil-${card.rarity}`} />}
-      {isM && !dimmed && <div className="tc-scanlines" />}
+    <div
+      onClick={onClick}
+      style={{
+        width:sz.w, height:sz.h, borderRadius:8, overflow:'hidden', flexShrink:0,
+        cursor:onClick?'pointer':'default',
+        border:`1.5px solid ${rs.border}`,
+        boxShadow: isHigh
+          ? `0 0 20px ${rs.glow}, 0 4px 20px rgba(0,0,0,0.7)`
+          : '0 2px 12px rgba(0,0,0,0.6)',
+        opacity: dimmed ? 0.4 : 1,
+        transition: 'transform 0.15s, box-shadow 0.15s',
+        position: 'relative',
+        background: HDR_COLOR[card.rarity] ?? '#0a1520',
+        display: 'flex', flexDirection: 'column',
+      }}
+      className={`rail-card${isHigh?' rail-card--high':''}`}
+    >
+      <HoloOverlay rarity={card.rarity} />
 
-      {/* ── Photo ── */}
-      <div style={{ height:sz.img, flexShrink:0, position:'relative',
-        borderBottom:`2px solid ${rs.border}`, overflow:'hidden' }}>
-        <CardImage src={card.image} alt={card.title} />
+      {/* ── Rarity header bar ───────────────────────────────────────────── */}
+      <div style={{
+        height:hdrH, background:`linear-gradient(90deg,${HDR_COLOR[card.rarity]},${rs.bg})`,
+        borderBottom:`1px solid ${rs.border}55`,
+        display:'flex', alignItems:'center', paddingLeft:5, paddingRight:5, gap:3, flexShrink:0,
+      }}>
+        {Array.from({length:stars}).map((_,i) => (
+          <span key={i} style={{ fontSize:hdrH*0.55, color:rs.color, lineHeight:1,
+            filter:`drop-shadow(0 0 3px ${rs.glow})` }}>★</span>
+        ))}
+        <span style={{ flex:1 }} />
+        <span style={{ fontSize:hdrH*0.58, color:rs.color, fontFamily:'monospace', fontWeight:700,
+          letterSpacing:'.12em', textShadow:`0 0 6px ${rs.glow}` }}>
+          {card.rarity === 'M' ? '???' : rs.name.toUpperCase()}
+        </span>
+        {card.rarity === 'M' && <span style={{ fontSize:hdrH*0.55, color:rs.color }}>✦</span>}
+      </div>
 
-        {/* Rarity badge strip */}
-        <div style={{
-          position:'absolute', top:0, left:0, right:0, height:19, zIndex:5,
-          background:BADGE_BG[card.rarity],
-          borderBottom:`1px solid ${rs.border}`,
-          display:'flex', alignItems:'center', paddingLeft:5, gap:4,
-        }}>
-          {isM && <span style={{ fontSize:sz.badge-0.5, color:rs.color }}>✦</span>}
-          <span style={{ fontSize:sz.badge, color:rs.color, fontFamily:'monospace', fontWeight:700, letterSpacing:'.1em',
-            textShadow:`0 0 5px ${rs.glow}` }}>
-            {rs.name.toUpperCase()}
-          </span>
-          {isM && <span style={{ fontSize:sz.badge-1.5, color:'rgba(140,160,255,0.45)', fontFamily:'monospace' }}>GHOST</span>}
-        </div>
+      {/* ── Card image ──────────────────────────────────────────────────── */}
+      <div style={{ position:'relative', flexShrink:0 }}>
+        <CardImage src={card.image} alt={card.title} height={sz.imgH} />
 
-        {/* Bottom photo gradient (not shown when Thomas banner is present) */}
-        {!isTF && (
-          <div style={{ position:'absolute', bottom:0, left:0, right:0, height:26,
-            background:`linear-gradient(transparent,${bot})`, zIndex:4 }} />
-        )}
-
-        {/* Count badge */}
-        {count > 1 && (
-          <div style={{ position:'absolute', top:22, left:4, zIndex:6,
-            background:'rgba(0,0,0,0.85)', border:`1px solid ${rs.border}`,
-            borderRadius:4, padding:'1px 5px', fontSize:sz.badge, color:rs.color, fontFamily:'monospace' }}>
-            ×{count}
+        {/* Thomas & Friends banner strip */}
+        {isTF && !dimmed && (
+          <div style={{
+            position:'absolute', bottom:0, left:0, right:0, height:size==='sm'?20:size==='md'?24:28,
+            background:card.character.color ?? '#1565c0',
+            display:'flex', alignItems:'center', gap:6,
+            paddingLeft: (size==='sm'?28:size==='md'?36:44) + 6, paddingRight:6,
+            boxShadow:'0 -2px 8px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{ position:'absolute', left:4, bottom:4 }}>
+              <CharBadge character={card.character} size={size} />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:sz.badgeFs-0.5, color:'rgba(255,255,255,0.7)', fontFamily:'monospace',
+                letterSpacing:'.1em', lineHeight:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                {card.character.show.toUpperCase()}
+              </div>
+              <div style={{ fontSize:size==='sm'?7.5:9, color:'#fff', fontWeight:700, fontFamily:'Georgia,serif',
+                whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                {card.character.character}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Thomas & Friends coloured banner + portrait */}
-        {isTF && !dimmed && <ThomasBanner character={card.character} size={size} />}
-
-        {/* Other franchise badge (small circle, top-right) */}
+        {/* Non-TF character badge (top-right circle) */}
         {card.character && !isTF && !dimmed && (
-          <div style={{ position:'absolute', top:22, right:4, zIndex:7,
-            width:size==='sm'?22:27, height:size==='sm'?22:27, borderRadius:'50%',
-            background:card.character.color??'#4b5563',
-            border:'2px solid rgba(255,255,255,0.3)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:'0 2px 8px rgba(0,0,0,0.6)' }}>
-            <span style={{ fontSize:size==='sm'?8:10, fontWeight:800, color:'#fff', fontFamily:'monospace' }}>
+          <div style={{
+            position:'absolute', top:4, right:4, zIndex:7,
+            width:size==='sm'?20:25, height:size==='sm'?20:25, borderRadius:'50%',
+            background:card.character.color??'#4b5563', border:'2px solid rgba(255,255,255,0.35)',
+            display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 8px rgba(0,0,0,0.6)',
+          }}>
+            <span style={{ fontSize:size==='sm'?7:9, fontWeight:800, color:'#fff', fontFamily:'monospace' }}>
               {card.character.character.charAt(0)}
             </span>
           </div>
         )}
 
-        {/* Favourite */}
+        {/* Duplicate count badge */}
+        {count > 1 && (
+          <div style={{ position:'absolute', top:4, left:4, zIndex:8,
+            background:'rgba(0,0,0,0.85)', border:`1px solid ${rs.border}`,
+            borderRadius:4, padding:'1px 5px', fontSize:sz.badgeFs, color:rs.color, fontFamily:'monospace' }}>
+            ×{count}
+          </div>
+        )}
+
+        {/* Fav button */}
         {onFav && (
           <button onClick={e=>{e.stopPropagation();onFav();}} style={{
-            position:'absolute', zIndex:10,
-            bottom: isTF ? (size==='sm'?30:size==='md'?36:42) : 4,
-            right:4,
-            background:'rgba(0,0,0,0.7)',
-            border:`1px solid ${isFav?'rgba(255,100,100,0.65)':'rgba(255,255,255,0.15)'}`,
-            borderRadius:'50%', width:18, height:18, cursor:'pointer',
+            position:'absolute', zIndex:10, bottom:isTF?(size==='sm'?22:28):4, right:4,
+            background:'rgba(0,0,0,0.7)', border:`1px solid ${isFav?'rgba(255,100,100,0.65)':'rgba(255,255,255,0.15)'}`,
+            borderRadius:'50%', width:17, height:17, cursor:'pointer',
             display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:9, color:isFav?'#ff6b6b':'rgba(255,255,255,0.38)',
+            fontSize:8.5, color:isFav?'#ff6b6b':'rgba(255,255,255,0.35)',
           }}>
             {isFav?'♥':'♡'}
           </button>
         )}
       </div>
 
-      {/* ── Info section ── */}
+      {/* ── Info footer ─────────────────────────────────────────────────── */}
       <div style={{
         height:infoH, padding:sz.bp, display:'flex', flexDirection:'column', gap:2,
-        background:`linear-gradient(to bottom,${bot},#030610)`,
-        position:'relative', overflow:'hidden',
-        paddingTop: isTF
-          ? (size==='sm'?'9px':size==='md'?'11px':'13px')
-          : undefined,
+        background:`linear-gradient(180deg, ${rs.bg} 0%, #030610 100%)`,
+        overflow:'hidden', paddingTop: isTF ? (size==='sm'?'8px':size==='md'?'10px':'12px') : undefined,
       }}>
-        {/* Top rule */}
-        <div style={{ position:'absolute', top:0, left:7, right:7, height:1,
-          background:`linear-gradient(to right,transparent,${rs.border},transparent)` }} />
+        {/* Divider */}
+        <div style={{ height:1, background:`linear-gradient(90deg,transparent,${rs.border},transparent)`,
+          marginBottom:1, flexShrink:0 }} />
 
-        {/* Title — fixed 2-line box */}
-        <div style={{
-          fontSize:sz.name, fontWeight:700, color:'#f0e8d8', lineHeight:1.22, fontFamily:'Georgia,serif',
-          height:sz.name*1.22*2+2, overflow:'hidden',
-          display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
-        }}>
+        {/* Title */}
+        <div style={{ fontSize:sz.nameFs, fontWeight:700, color:'#f0e8d8', fontFamily:'Georgia,serif',
+          lineHeight:1.2, overflow:'hidden', display:'-webkit-box',
+          WebkitLineClamp:2, WebkitBoxOrient:'vertical', flexShrink:0 }}>
           {card.title}
         </div>
 
-        {/* Stars row */}
-        <div style={{ display:'flex', gap:2, alignItems:'center', flexShrink:0 }}>
-          {Array.from({length:star}).map((_,i)=>(
-            <span key={i} style={{ fontSize:sz.stars, color:rs.color, lineHeight:1, filter:`drop-shadow(0 0 3px ${rs.glow})` }}>★</span>
-          ))}
-          {Array.from({length:Math.max(0,4-star)}).map((_,i)=>(
-            <span key={i} style={{ fontSize:sz.stars, color:'rgba(255,255,255,0.1)', lineHeight:1 }}>★</span>
-          ))}
-          {size!=='sm' && card.views>0 && (
-            <span style={{ fontSize:sz.badge-0.5, color:'rgba(255,255,255,0.2)', fontFamily:'monospace', marginLeft:3 }}>
-              {card.views<1000?`${card.views}/mo`:`${(card.views/1000).toFixed(0)}k/mo`}
+        {/* Stats bars */}
+        {stats && (
+          <div style={{ display:'flex', flexDirection:'column', gap:size==='sm'?1.5:2.5, flex:1 }}>
+            {STAT_CONFIG.slice(0, statsToShow).map(cfg => (
+              <MiniStat key={cfg.key} cfg={cfg} value={stats[cfg.key] ?? 0} fontSize={sz.badgeFs} />
+            ))}
+          </div>
+        )}
+
+        {/* Views / overall score */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
+          {card.views > 0 && (
+            <span style={{ fontSize:sz.badgeFs-0.5, color:'rgba(255,255,255,0.22)', fontFamily:'monospace' }}>
+              {card.views < 1000 ? `${card.views}/mo` : `${(card.views/1000).toFixed(0)}k/mo`}
+            </span>
+          )}
+          {stats && (
+            <span style={{ fontSize:sz.badgeFs, color:rs.color, fontFamily:'monospace', fontWeight:700,
+              textShadow:`0 0 4px ${rs.glow}` }}>
+              {stats.overall}
             </span>
           )}
         </div>
-
-        {/* Extract */}
-        {card.extract && size!=='sm' && (
-          <div style={{
-            fontSize:sz.meta, color:isM?'rgba(140,160,255,0.4)':'rgba(200,215,230,0.38)',
-            lineHeight:1.5, flex:1, overflow:'hidden',
-            display:'-webkit-box', WebkitLineClamp:3, WebkitBoxOrient:'vertical',
-            fontFamily:'Georgia,serif', fontStyle:'italic',
-          }}>
-            {card.extract}
-          </div>
-        )}
-
-        {/* Character note */}
-        {card.character && size!=='sm' && (
-          <div style={{ flexShrink:0, fontSize:sz.badge-0.5,
-            color: isTF ? `${card.character.color}90` : 'rgba(200,160,255,0.6)',
-            fontFamily:'monospace', lineHeight:1.3,
-            overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>
-            {card.character.note}
-          </div>
-        )}
       </div>
     </div>
   );

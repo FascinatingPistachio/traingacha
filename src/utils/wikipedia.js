@@ -1,5 +1,6 @@
 import { VIEW_THRESHOLDS, FICTIONAL_TITLE_PATTERNS } from '../constants.js';
 import { applyCharacterRarityBoost, STATIC_CHARACTERS, parseCharacterFromWikitext } from './characters.js';
+import { generateCardStats } from './stats.js';
 
 export const CATEGORIES = {
   famous: [
@@ -256,7 +257,7 @@ export async function fetchTrainCard(categoryPool, maxAttempts = 28, ownedIds = 
     sessionSeen.add(article.title);
     sessionSeen.add(article.id);
     addSeenPersisted(title);
-    return { ...article, rarity, views, character: character ?? null };
+    return { ...article, rarity, views, character: character ?? null, stats: generateCardStats(article.title, views, rarity) };
   }
   return null;
 }
@@ -280,7 +281,7 @@ export async function fetchThomasCard(ownedIds = new Set()) {
     let   rarity  = rarityFromViews(views);
     rarity        = applyCharacterRarityBoost(rarity, char);
     addSeenPersisted(locoTitle);
-    return { ...article, rarity, views, character: char };
+    return { ...article, rarity, views, character: char, stats: generateCardStats(article.title, views, rarity) };
   }
   return null;
 }
