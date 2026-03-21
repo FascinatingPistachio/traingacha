@@ -2,9 +2,9 @@
 // All text is high-contrast and clearly readable.
 
 const SZ = {
-  sm: { w:130, h:192 },
-  md: { w:162, h:240 },
-  lg: { w:196, h:290 },
+  sm: { w:128, h:192 },  // 2:3
+  md: { w:160, h:240 },  // 2:3
+  lg: { w:192, h:288 },  // 2:3
 };
 
 function WikiGlobeSVG({ size }) {
