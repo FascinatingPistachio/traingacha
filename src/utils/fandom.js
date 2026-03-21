@@ -1,25 +1,37 @@
 /**
  * fandom.js — character image resolution for Thomas & Friends characters.
  *
- * Uses the Fandom MediaWiki API (thomas.fandom.com/api.php).
- * No auth key required — CORS enabled via origin=*.
+ * Priority order:
+ *  1. Local bundled images  (/characters/<name>.png|webp)  — instant, no network
+ *  2. Fandom MediaWiki API  (ttte.fandom.com/api.php)      — free, no key needed
+ *     a. prop=pageimages  (single call, returns current infobox image)
+ *     b. prop=images + imageinfo scored fallback
+ *  3. Colour-initial circle rendered in RailCard             — always works
  *
- * Strategy:
- *  1. `prop=pageimages` — single call, returns the current infobox/representative
- *     image (the same one used in social media previews). Always up to date.
- *  2. Falls back to `prop=images` + `prop=imageinfo` scored search if pageimages
- *     returns nothing (e.g. for pages without an infobox image set).
- *  3. Colour-initial fallback rendered in RailCard if both API calls fail.
+ * Results from the API are cached in localStorage for 7 days.
  *
- * Results cached in localStorage for 7 days to avoid repeat API calls.
+ * NOTE: The correct Fandom wiki ID for Thomas & Friends is "ttte"
+ *       (https://ttte.fandom.com), NOT "thomas.fandom.com" which 404s.
  */
 
-const FANDOM_API    = 'https://thomas.fandom.com/api.php';
-const IMG_CACHE_KEY = 'rg_fandom_img_v3';
+// ── 1. Local bundled images ───────────────────────────────────────────────────
+// Files placed in public/characters/ are served at /characters/<file> by Vite.
+// Run  scripts/download-characters.sh  to populate this folder.
+const LOCAL_IMAGES = {
+  'Duck':   '/characters/duck.png',
+  'Diesel': '/characters/diesel.png',
+  'BoCo':   '/characters/boco.webp',
+  'Toby':   '/characters/toby.webp',
+};
+
+// ── 2. Fandom MediaWiki API config ────────────────────────────────────────────
+// "ttte" is the correct wiki ID — static CDN also uses static.wikia.nocookie.net/ttte/
+const FANDOM_API    = 'https://ttte.fandom.com/api.php';
+const IMG_CACHE_KEY = 'rg_fandom_img_v4';
 const IMG_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 const THUMB_SIZE    = 400;
 
-// ── Page title variants to try (in order) ─────────────────────────────────────
+// ── Page title variants to try ────────────────────────────────────────────────
 function pageTitleVariants(name) {
   return [
     name,
@@ -35,11 +47,11 @@ function loadCache() {
   catch { return {}; }
 }
 function saveCache(cache) {
-  try { localStorage.setItem(IMG_CACHE_KEY, JSON.stringify(cache)); } catch { /* quota */ }
+  try { localStorage.setItem(IMG_CACHE_KEY, JSON.stringify(cache)); } catch {}
 }
 
-// ── Method 1: pageimages — fastest, most reliable ─────────────────────────────
-// Returns the representative/infobox image for the page (what social previews use).
+// ── Method A: pageimages prop ─────────────────────────────────────────────────
+// Returns the representative/infobox image (same one used in social previews).
 async function fetchViaPageImages(name) {
   for (const title of pageTitleVariants(name)) {
     const url = new URL(FANDOM_API);
@@ -50,7 +62,6 @@ async function fetchViaPageImages(name) {
     url.searchParams.set('piprop',      'thumbnail');
     url.searchParams.set('format',      'json');
     url.searchParams.set('origin',      '*');
-
     try {
       const res  = await fetch(url.toString(), { signal: AbortSignal.timeout(6000) });
       if (!res.ok) continue;
@@ -64,32 +75,32 @@ async function fetchViaPageImages(name) {
   return null;
 }
 
-// ── Method 2: image list + imageinfo — scored fallback ────────────────────────
+// ── Method B: image list + imageinfo scored fallback ─────────────────────────
 function scoreImageTitle(fileTitle, characterName) {
   const t    = fileTitle.toLowerCase();
   const name = characterName.toLowerCase().replace(/\s+/g, '');
-  if (/\.(svg|ico|gif|webp|ogg|mp3|mp4|pdf)$/i.test(t)) return -1;
+  if (/\.(svg|ico|gif|ogg|mp3|mp4|pdf)$/i.test(t)) return -1;
   if (/^file:(stub|wiki|placeholder|transparent|blank|logo|icon|favicon|badge|star|award)/i.test(t)) return -1;
   let score = 0;
-  if (t.includes(name))        score += 30;
-  if (/maincgi2/i.test(t))     score += 25;
-  if (/maincgi/i.test(t))      score += 20;
-  if (/cgi2/i.test(t))         score += 15;
-  if (/cgi/i.test(t))          score += 10;
-  if (/\.png$/i.test(t))       score += 3;
-  if (/\.jpg$|\.jpeg$/i.test(t)) score += 2;
+  if (t.includes(name))          score += 30;
+  if (/maincgi2/i.test(t))       score += 25;
+  if (/maincgi/i.test(t))        score += 20;
+  if (/cgi2/i.test(t))           score += 15;
+  if (/cgi/i.test(t))            score += 10;
+  if (/\.(png|webp)$/i.test(t))  score += 3;
+  if (/\.jpe?g$/i.test(t))       score += 2;
   return score;
 }
 
 async function fetchImageUrl(fileTitle) {
   const url = new URL(FANDOM_API);
-  url.searchParams.set('action',    'query');
-  url.searchParams.set('titles',    fileTitle);
-  url.searchParams.set('prop',      'imageinfo');
-  url.searchParams.set('iiprop',    'url');
+  url.searchParams.set('action',     'query');
+  url.searchParams.set('titles',     fileTitle);
+  url.searchParams.set('prop',       'imageinfo');
+  url.searchParams.set('iiprop',     'url');
   url.searchParams.set('iiurlwidth', String(THUMB_SIZE));
-  url.searchParams.set('format',    'json');
-  url.searchParams.set('origin',    '*');
+  url.searchParams.set('format',     'json');
+  url.searchParams.set('origin',     '*');
   try {
     const res  = await fetch(url.toString(), { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
@@ -128,16 +139,18 @@ async function fetchViaImageList(name) {
   return null;
 }
 
-// ── Main export: fetch + cache ────────────────────────────────────────────────
+// ── Main export ───────────────────────────────────────────────────────────────
 export async function fetchFandomCharacterImage(characterName) {
+  // Priority 1: local bundled image (no network, instant)
+  if (LOCAL_IMAGES[characterName]) return LOCAL_IMAGES[characterName];
+
+  // Priority 2: cached API result
   const cache = loadCache();
   const entry = cache[characterName];
   if (entry && Date.now() - entry.ts < IMG_CACHE_TTL) return entry.url;
 
-  // Try Method 1 first (fastest, most reliable)
+  // Priority 3: Fandom API — pageimages first, image list fallback
   let url = await fetchViaPageImages(characterName);
-
-  // If Method 1 found nothing, try Method 2
   if (!url) url = await fetchViaImageList(characterName);
 
   cache[characterName] = { url, ts: Date.now() };
@@ -145,21 +158,17 @@ export async function fetchFandomCharacterImage(characterName) {
   return url;
 }
 
-// ── Synchronous lookup (returns [] since we have no hardcoded URLs anymore) ───
-// RailCard will immediately trigger the async API path.
-export function getCharacterImageUrls(_name) {
-  return [];
-}
+// Synchronous getter — returns nothing (RailCard always uses the async path)
+export function getCharacterImageUrls(_name) { return []; }
 
-// ── Wiki page URL for the "DIESEL ON FANDOM →" link ──────────────────────────
+// Wiki page URL for the "X ON FANDOM →" link in CardDetailModal
 export function getFandomPageUrl(characterName) {
-  return `https://thomas.fandom.com/wiki/${encodeURIComponent(characterName.replace(/ /g, '_'))}`;
+  return `https://ttte.fandom.com/wiki/${encodeURIComponent(characterName.replace(/ /g, '_'))}`;
 }
 
-// ── No-op prewarm (fetching is on-demand only) ────────────────────────────────
 export function prewarmFandomCache() {}
 
-// Legacy export alias used in CardDetailModal
+// Legacy alias used by CardDetailModal
 export const CHARACTER_WIKI_URLS = new Proxy({}, {
   get: (_, name) => getFandomPageUrl(String(name)),
 });
