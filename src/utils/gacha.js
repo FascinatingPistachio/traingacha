@@ -7,62 +7,104 @@ function poolForPity(pity) {
   return PITY_POOL.low;
 }
 
+/**
+ * Draw a pack of 5 cards.
+ *
+ * Guarantees:
+ *  - No card already in the player's collection (ownedIds)
+ *  - No duplicates within the pack itself
+ *
+ * Cards are drawn sequentially so each draw can exclude everything
+ * already committed (owned + drawn so far this pack).
+ */
 export async function drawPack(pity = 0, ownedIds = new Set()) {
   const forceLegendary = sessionStorage.getItem('rg_force_legendary');
   const forceEpic      = sessionStorage.getItem('rg_force_epic');
   const forceThomas    = sessionStorage.getItem('rg_force_thomas');
 
-  // Clear cheat flags immediately
   if (forceLegendary) sessionStorage.removeItem('rg_force_legendary');
   if (forceEpic)      sessionStorage.removeItem('rg_force_epic');
   if (forceThomas)    sessionStorage.removeItem('rg_force_thomas');
 
-  let slots = [0,1,2,3,4].map(offset => Math.max(0, pity - offset));
+  // Running exclude set — starts with everything owned, grows as each card
+  // is drawn so duplicates within a pack are impossible.
+  const exclude = new Set(ownedIds);
 
-  // ── Cheat overrides ──────────────────────────────────────────────────────
+  // Helper: draw one card sequentially and add it to exclude immediately
+  async function drawOne(pool, attempts = 28) {
+    const card = await fetchTrainCard(pool, attempts, exclude);
+    if (card) {
+      exclude.add(card.id);
+      if (card.title) exclude.add(card.title.toLowerCase().replace(/\W+/g, '_'));
+    }
+    return card;
+  }
+
+  // ── Cheat overrides ──────────────────────────────────────────────────────────
   if (forceLegendary) {
-    const cards = await Promise.all(slots.map(() => fetchTrainCard(PITY_POOL.high, 24, ownedIds)));
-    const result = cards.filter(Boolean);
-    // Force all to legendary
-    return result.map(c => ({ ...c, rarity: 'L' })).slice(0, 5);
+    const cards = [];
+    for (let i = 0; i < 5; i++) {
+      const c = await drawOne(PITY_POOL.high);
+      if (c) cards.push({ ...c, rarity: 'L' });
+    }
+    return cards;
   }
 
   if (forceEpic) {
-    const cards = await Promise.all(slots.map(() => fetchTrainCard(PITY_POOL.mid, 24, ownedIds)));
-    return cards.filter(Boolean).map(c => ({ ...c, rarity: 'E' })).slice(0, 5);
+    const cards = [];
+    for (let i = 0; i < 5; i++) {
+      const c = await drawOne(PITY_POOL.mid);
+      if (c) cards.push({ ...c, rarity: 'E' });
+    }
+    return cards;
   }
 
   if (forceThomas) {
-    // Clear persisted seen list so Thomas loco articles can be retried
     try { sessionStorage.removeItem('rg_seen'); } catch {}
-    // First card guaranteed to be a Thomas character, rest normal
-    const [thomasCard, ...rest] = await Promise.all([
-      fetchThomasCard(ownedIds),
-      ...slots.slice(1).map(p => fetchTrainCard(poolForPity(p), 24, ownedIds)),
-    ]);
-    const cards = [thomasCard, ...rest].filter(Boolean).slice(0, 5);
-    // Back-fill if needed
+
+    const cards = [];
+
+    // First card: guaranteed Thomas character
+    const thomasCard = await fetchThomasCard(exclude);
+    if (thomasCard) {
+      exclude.add(thomasCard.id);
+      cards.push(thomasCard);
+    }
+
+    // Fill remaining 4 slots normally
+    for (let i = cards.length; i < 5; i++) {
+      const pityOffset = Math.max(0, pity - i);
+      const c = await drawOne(poolForPity(pityOffset));
+      if (c) cards.push(c);
+    }
+
+    // Back-fill if we still short (very rare)
     let extra = 0;
     while (cards.length < 5 && extra < 8) {
-      const c = await fetchTrainCard(ALL_CATEGORIES, 5);
+      const c = await drawOne(ALL_CATEGORIES, 5);
       if (c) cards.push(c);
       extra++;
     }
     return cards.slice(0, 5);
   }
 
-  // ── Normal draw ──────────────────────────────────────────────────────────
-  const results = await Promise.all(
-    slots.map(p => fetchTrainCard(poolForPity(p)))
-  );
-  const cards = results.filter(Boolean);
+  // ── Normal draw ──────────────────────────────────────────────────────────────
+  const cards = [];
 
+  for (let i = 0; i < 5; i++) {
+    const pityOffset = Math.max(0, pity - i);
+    const c = await drawOne(poolForPity(pityOffset));
+    if (c) cards.push(c);
+  }
+
+  // Back-fill if any slot came back null (network failure, exhausted pool, etc.)
   let fill = 0;
   while (cards.length < 5 && fill < 10) {
-    const c = await fetchTrainCard(ALL_CATEGORIES, 6);
+    const c = await drawOne(ALL_CATEGORIES, 6);
     if (c) cards.push(c);
     fill++;
   }
+
   return cards.slice(0, 5);
 }
 

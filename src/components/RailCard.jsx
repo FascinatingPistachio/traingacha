@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { RARITY } from '../constants.js';
-import { getCharacterImageUrls } from '../utils/fandom.js';
+import { getCharacterImageUrls, fetchFandomCharacterImage } from '../utils/fandom.js';
 import '../styles/cards.css';
 
 // ── Exact 2:3 ratio (600:900) at three display sizes ─────────────────────────
@@ -89,15 +89,21 @@ function CharacterFallback({ character, size }) {
 
 // ── Thomas & Friends character banner ─────────────────────────────────────────
 function ThomasBanner({ character, size }) {
-  const urls    = getCharacterImageUrls(character.character);
-  const [urlIdx, setUrlIdx] = useState(0);   // which URL we're trying
-  const [imgOk,  setImgOk]  = useState(false);
+  // Fetch from Fandom API on mount (result is cached in localStorage for 7 days)
+  const [imgUrl,  setImgUrl]  = useState(null);   // resolved URL from API
+  const [imgOk,   setImgOk]   = useState(false);  // image has loaded successfully
+  const [imgFail, setImgFail] = useState(false);  // image URL resolved but 404'd
 
-  const currentUrl = urls[urlIdx] ?? null;
-  const handleError = () => {
-    if (urlIdx < urls.length - 1) setUrlIdx(i => i + 1);
-    // If all URLs fail, currentUrl becomes null → fallback renders
-  };
+  useEffect(() => {
+    let cancelled = false;
+    fetchFandomCharacterImage(character.character)
+      .then(url => { if (!cancelled) setImgUrl(url); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [character.character]);
+
+  const currentUrl = imgFail ? null : imgUrl;
+  const handleError = () => { setImgFail(true); };
 
   const sz      = SZ[size];
   // Keep banner thin so it doesn't eat the train photo
@@ -124,8 +130,8 @@ function ThomasBanner({ character, size }) {
         boxShadow:'0 2px 12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.2)',
         zIndex:9, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
       }}>
-        {currentUrl && !imgOk && urlIdx < urls.length && (
-          // Show initial while loading
+        {currentUrl && !imgOk && (
+          // Show initial letter while image loads
           <span style={{ position:'absolute', fontSize:circleD*0.36, fontWeight:800, color:'rgba(255,255,255,0.4)', fontFamily:'monospace' }}>
             {character.character.charAt(0)}
           </span>
@@ -138,8 +144,8 @@ function ThomasBanner({ character, size }) {
               opacity:imgOk?1:0, transition:'opacity 0.35s' }}
           />
         ) : null}
-        {/* Fallback when all URLs fail — styled initial circle */}
-        {(!currentUrl || (urlIdx >= urls.length - 1 && !imgOk)) && (
+        {/* Colour fallback: API returned nothing, or URL 404'd, or still loading */}
+        {!currentUrl && (
           <CharacterFallback character={character} size={circleD} />
         )}
       </div>
