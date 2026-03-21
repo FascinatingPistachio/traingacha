@@ -7,7 +7,7 @@ function poolForPity(pity) {
   return PITY_POOL.low;
 }
 
-export async function drawPack(pity = 0) {
+export async function drawPack(pity = 0, ownedIds = new Set()) {
   const forceLegendary = sessionStorage.getItem('rg_force_legendary');
   const forceEpic      = sessionStorage.getItem('rg_force_epic');
   const forceThomas    = sessionStorage.getItem('rg_force_thomas');
@@ -21,14 +21,14 @@ export async function drawPack(pity = 0) {
 
   // ── Cheat overrides ──────────────────────────────────────────────────────
   if (forceLegendary) {
-    const cards = await Promise.all(slots.map(() => fetchTrainCard(PITY_POOL.high)));
+    const cards = await Promise.all(slots.map(() => fetchTrainCard(PITY_POOL.high, 24, ownedIds)));
     const result = cards.filter(Boolean);
     // Force all to legendary
     return result.map(c => ({ ...c, rarity: 'L' })).slice(0, 5);
   }
 
   if (forceEpic) {
-    const cards = await Promise.all(slots.map(() => fetchTrainCard(PITY_POOL.mid)));
+    const cards = await Promise.all(slots.map(() => fetchTrainCard(PITY_POOL.mid, 24, ownedIds)));
     return cards.filter(Boolean).map(c => ({ ...c, rarity: 'E' })).slice(0, 5);
   }
 
@@ -37,8 +37,8 @@ export async function drawPack(pity = 0) {
     try { sessionStorage.removeItem('rg_seen'); } catch {}
     // First card guaranteed to be a Thomas character, rest normal
     const [thomasCard, ...rest] = await Promise.all([
-      fetchThomasCard(),
-      ...slots.slice(1).map(p => fetchTrainCard(poolForPity(p))),
+      fetchThomasCard(ownedIds),
+      ...slots.slice(1).map(p => fetchTrainCard(poolForPity(p), 24, ownedIds)),
     ]);
     const cards = [thomasCard, ...rest].filter(Boolean).slice(0, 5);
     // Back-fill if needed

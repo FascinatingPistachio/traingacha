@@ -257,7 +257,7 @@ export async function fetchArticleSummary(title) {
   return null; // all titles failed
 }
 
-export async function fetchTrainCard(categoryPool, maxAttempts = 16) {
+export async function fetchTrainCard(categoryPool, maxAttempts = 24, ownedIds = new Set()) {
   const persistedSeen = getSeenPersisted();
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -265,9 +265,12 @@ export async function fetchTrainCard(categoryPool, maxAttempts = 16) {
     const members  = await getCategoryMembers(category);
     if (!members.length) continue;
 
-    const unseen    = members.filter(t => !sessionSeen.has(t) && !persistedSeen.has(t));
-    const pool      = unseen.length ? unseen : members.filter(t => !sessionSeen.has(t));
-    const finalPool = pool.length ? pool : members;
+    // Exclude: session-seen, persisted-seen, AND cards already in collection
+    const isOwned  = (t) => ownedIds.has(t.toLowerCase().replace(/\W+/g, '_'));
+    const unseen   = members.filter(t => !sessionSeen.has(t) && !persistedSeen.has(t) && !isOwned(t));
+    const pool     = unseen.length ? unseen : members.filter(t => !sessionSeen.has(t) && !isOwned(t));
+    const fallback = pool.length ? pool : members.filter(t => !isOwned(t));
+    const finalPool = fallback.length ? fallback : members; // last resort: anything
     const title     = finalPool[Math.floor(Math.random() * finalPool.length)];
 
     if (isFictional(title)) continue;
@@ -294,14 +297,21 @@ export async function fetchTrainCard(categoryPool, maxAttempts = 16) {
 }
 
 // Thomas cheat — uses verified static mappings only, no wikitext fetching
-export async function fetchThomasCard() {
+export async function fetchThomasCard(ownedIds = new Set()) {
   try { sessionStorage.removeItem('rg_seen'); } catch {}
+
+  const isOwned = (t) => ownedIds.has(t.toLowerCase().replace(/\W+/g, '_'));
 
   const entries = Object.entries(STATIC_CHARACTERS)
     .filter(([, v]) => v.show === 'Thomas & Friends')
+    .filter(([t]) => !isOwned(t))  // skip already-owned Thomas locos
     .sort(() => Math.random() - 0.5);
 
-  for (const [locoTitle, char] of entries) {
+  // Fallback to all Thomas locos if all are owned
+  const pool = entries.length ? entries
+    : Object.entries(STATIC_CHARACTERS).filter(([, v]) => v.show === 'Thomas & Friends');
+
+  for (const [locoTitle, char] of pool) {
     if (isFictional(locoTitle)) continue;
     const article = await fetchArticleSummary(locoTitle);
     if (!article) continue;

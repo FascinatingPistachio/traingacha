@@ -154,7 +154,9 @@ export default function App() {
     if (save.tickets < PACK_COST) { notify('Not enough tickets!', 'error'); return; }
     if (busy) return;
     setBusy(true);
-    const promise = drawPack(save.pity ?? 0).then(async cards => {
+    // Build set of already-owned article IDs so duplicates are avoided
+    const ownedIds = new Set(Object.keys(save.collection ?? {}));
+    const promise = drawPack(save.pity ?? 0, ownedIds).then(async cards => {
       if (!cards?.length) return [];
       preloadCardImages(cards).catch(() => {});
       return cards;
