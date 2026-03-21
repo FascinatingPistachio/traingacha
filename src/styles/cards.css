@@ -86,8 +86,9 @@
 .tc-back {
   position: relative; border-radius: 13px; overflow: hidden;
   flex-shrink: 0; transition: transform 0.22s ease;
-  border: 2px solid rgba(201,168,51,0.35);
-  background: linear-gradient(160deg, #0d1f35, #060f1c);
+  border: 2px solid rgba(180,180,170,0.45);
+  background: linear-gradient(175deg, #d8d8d2, #c8c8c0, #d0cfc9);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 4px 16px rgba(0,0,0,0.5);
 }
 .tc-back.tappable:hover {
   transform: translateY(-10px) scale(1.08) rotate(0.4deg);
