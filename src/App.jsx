@@ -8,17 +8,16 @@ import CollectionScreen from './components/CollectionScreen.jsx';
 import AccountScreen    from './components/AccountScreen.jsx';
 import BottomNav        from './components/BottomNav.jsx';
 import Toast            from './components/Toast.jsx';
-import AdScreen         from './components/AdScreen.jsx';
 import Footer           from './components/Footer.jsx';
-
-import { drawPack, updatePity } from './utils/gacha.js';
-import { loadSave, writeSave, deleteSave, makeFreshSave } from './utils/storage.js';
-import { preloadCardImages } from './utils/preload.js';
-import { collectTimerCharges } from './utils/tickets.js';
-import { toggleMute, isMuted, soundClick, soundDailyClaim } from './utils/sounds.js';
-import { prewarmFandomCache } from './utils/fandom.js';
-import { checkNewAchievements, updateLoginStreak } from './utils/achievements.js';
 import AchievementToast from './components/AchievementToast.jsx';
+
+import { drawPack, updatePity }                             from './utils/gacha.js';
+import { loadSave, writeSave, deleteSave, makeFreshSave }   from './utils/storage.js';
+import { preloadCardImages }                                from './utils/preload.js';
+import { collectTimerCharges }                              from './utils/tickets.js';
+import { toggleMute, isMuted, soundClick, soundDailyClaim } from './utils/sounds.js';
+import { prewarmFandomCache }                               from './utils/fandom.js';
+import { checkNewAchievements, updateLoginStreak }          from './utils/achievements.js';
 import { PACK_COST, DAILY_BONUS, TIMER_TICKETS, AD_TICKETS } from './constants.js';
 
 function TopBar({ tickets }) {
@@ -31,7 +30,9 @@ function TopBar({ tickets }) {
       borderBottom:'1px solid rgba(201,168,51,0.08)',
       padding:'9px 16px', display:'flex', justifyContent:'space-between', alignItems:'center',
     }}>
-      <span style={{ color:'#c9a833', fontFamily:'monospace', fontSize:12, fontWeight:700, letterSpacing:'.15em' }}>🚂 RAIL GACHA</span>
+      <span style={{ color:'#c9a833', fontFamily:'monospace', fontSize:12, fontWeight:700, letterSpacing:'.15em' }}>
+        🚂 RAIL GACHA
+      </span>
       <div style={{ display:'flex', alignItems:'center', gap:12 }}>
         <span style={{ color:'#c9a833', fontFamily:'monospace', fontSize:12 }}>🎫 {tickets}</span>
         <button onClick={handleMute} title={muted?'Unmute':'Mute'} style={{
@@ -58,43 +59,38 @@ function LoadingScreen() {
 }
 
 export default function App() {
-  const [save,    setSave]    = useState(null);
-  const [showAd,  setShowAd]  = useState(false);
-  const [screen,  setScreen]  = useState('loading');
+  const [save,         setSave]         = useState(null);
+  const [screen,       setScreen]       = useState('loading');
   const [cardsPromise, setCardsPromise] = useState(null);
-  const [busy,    setBusy]    = useState(false);
-  const [toast,   setToast]   = useState(null);
+  const [busy,         setBusy]         = useState(false);
+  const [toast,        setToast]        = useState(null);
+  const [achQueue,     setAchQueue]     = useState([]);
 
   useEffect(() => {
+    prewarmFandomCache();
     loadSave().then(data => {
       if (data) {
-        const patch  = collectTimerCharges(data);
-        const merged = patch ? { ...data, ...patch } : data;
-        // Ensure favourites set exists
-        if (!merged.favourites) merged.favourites = [];
-        // Update login streak
+        let merged = {
+          ...data,
+          favourites:   data.favourites   ?? [],
+          achievements: data.achievements ?? [],
+          totalDailies: data.totalDailies ?? 0,
+          loginStreak:  data.loginStreak  ?? 0,
+        };
+        const timerPatch  = collectTimerCharges(merged);
         const streakPatch = updateLoginStreak(merged);
-        if (streakPatch) Object.assign(merged, streakPatch);
-        if (patch) writeSave(merged);
+        if (timerPatch)  merged = { ...merged, ...timerPatch };
+        if (streakPatch) merged = { ...merged, ...streakPatch };
+        if (timerPatch || streakPatch) writeSave(merged);
         setSave(merged);
         setScreen('home');
-      } else { setScreen('login'); }
+      } else {
+        setScreen('login');
+      }
     });
-  }, []);
-
-  // Check and queue new achievements after any save update
-  const checkAchievements = useCallback((updatedSave) => {
-    const newOnes = checkNewAchievements(updatedSave);
-    if (newOnes.length) {
-      setAchQueue(q => [...q, ...newOnes]);
-      // Persist earned achievements
-      const earned = new Set(updatedSave.achievements ?? []);
-      newOnes.forEach(a => earned.add(a.id));
-      updateSave({ achievements: [...earned] });
-    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const notify = useCallback((message, type='info') => {
+  const notify = useCallback((message, type = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3200);
   }, []);
@@ -107,21 +103,50 @@ export default function App() {
     });
   }, []);
 
-  const handleLogin = (username, imported=null) => {
+  // Check achievements against a save snapshot and queue any new ones
+  const triggerAchievements = useCallback((snap) => {
+    const newOnes = checkNewAchievements(snap);
+    if (!newOnes.length) return;
+    const earned = new Set(snap.achievements ?? []);
+    newOnes.forEach(a => earned.add(a.id));
+    const next = { ...snap, achievements: [...earned] };
+    writeSave(next);
+    setSave(next);
+    setAchQueue(q => [...q, ...newOnes]);
+  }, []);
+
+  const handleLogin = (username, imported = null) => {
     const now  = Date.now();
-    const data = imported ?? { ...makeFreshSave(username), timerCharges:0, timerLastCollect:now, lastAdWatch:null, favourites:[] };
-    if (!data.favourites) data.favourites = [];
+    const today = new Date().toISOString().split('T')[0];
+    const data = imported ?? {
+      ...makeFreshSave(username),
+      timerCharges: 0, timerLastCollect: now, lastAdWatch: null,
+      favourites: [], achievements: [],
+      loginStreak: 1, lastLoginDate: today, totalDailies: 0,
+    };
+    if (!data.favourites)   data.favourites   = [];
+    if (!data.achievements) data.achievements = [];
     writeSave(data);
     setSave(data);
     setScreen('home');
-    notify(imported ? `Welcome back, ${data.username}!` : `All aboard, ${username}! You have ${data.tickets} starter tickets.`, 'success');
+    notify(imported ? `Welcome back, ${data.username}!` : `All aboard, ${username}! ${data.tickets} starter tickets.`, 'success');
   };
 
   const handleDaily = () => {
     const today = new Date().toISOString().split('T')[0];
     if (save.dailyClaimedDate === today) { notify('Already claimed today!', 'warn'); return; }
     soundDailyClaim();
-    updateSave({ tickets: save.tickets + DAILY_BONUS, dailyClaimedDate: today, totalDailies: (save.totalDailies ?? 0) + 1 });
+    setSave(prev => {
+      const next = {
+        ...prev,
+        tickets:          prev.tickets + DAILY_BONUS,
+        dailyClaimedDate: today,
+        totalDailies:     (prev.totalDailies ?? 0) + 1,
+      };
+      writeSave(next);
+      setTimeout(() => triggerAchievements(next), 100);
+      return next;
+    });
     notify(`+${DAILY_BONUS} tickets claimed!`, 'success');
   };
 
@@ -140,7 +165,6 @@ export default function App() {
     setBusy(false);
   };
 
-  // Done → back to SHOP (pack area)
   const handleOpeningDone = async () => {
     if (cardsPromise) {
       try {
@@ -155,15 +179,21 @@ export default function App() {
                 collection[card.id] = { ...card, count:1, addedAt:new Date().toISOString() };
               }
             }
-            const next = { ...prev, collection, pity:updatePity(prev.pity??0, cards), totalPulls:(prev.totalPulls??0)+cards.length };
+            const next = {
+              ...prev,
+              collection,
+              pity:       updatePity(prev.pity ?? 0, cards),
+              totalPulls: (prev.totalPulls ?? 0) + cards.length,
+            };
             writeSave(next);
+            setTimeout(() => triggerAchievements(next), 400);
             return next;
           });
         }
-      } catch {}
+      } catch { /* network failed */ }
     }
     setCardsPromise(null);
-    setScreen('shop'); // ← back to shop, not collection
+    setScreen('shop');
   };
 
   const handleToggleFav = (id) => {
@@ -172,24 +202,20 @@ export default function App() {
       if (favs.has(id)) favs.delete(id); else favs.add(id);
       const next = { ...prev, favourites: [...favs] };
       writeSave(next);
+      setTimeout(() => triggerAchievements(next), 100);
       return next;
     });
   };
 
   const handleClaimCharges = () => {
     const charges = save.timerCharges ?? 0;
-    if (charges <= 0) return;
+    if (!charges) return;
     const gained = charges * TIMER_TICKETS;
     updateSave({ tickets: save.tickets + gained, timerCharges: 0 });
-    notify(`+${gained} ticket${gained>1?'s':''} collected!`, 'success');
+    notify(`+${gained} ticket${gained > 1 ? 's' : ''} collected!`, 'success');
   };
 
-  const handleShowAd = () => {
-    setShowAd(true);
-  };
-
-  const handleAdComplete = () => {
-    setShowAd(false);
+  const handleWatchAd = () => {
     updateSave({ tickets: save.tickets + AD_TICKETS, lastAdWatch: Date.now() });
     notify(`+${AD_TICKETS} tickets! Thanks for watching.`, 'success');
   };
@@ -204,19 +230,23 @@ export default function App() {
 
   const handleReset = () => { deleteSave(); setSave(null); setScreen('login'); };
 
+  // ── Render ────────────────────────────────────────────────────────────────────
   if (screen === 'loading') return <LoadingScreen />;
   if (screen === 'login')   return <LoginScreen onLogin={handleLogin} />;
 
-  const favSet = new Set(save.favourites ?? []);
+  const favSet   = new Set(save.favourites ?? []);
+  const achToast = achQueue.length > 0
+    ? <AchievementToast key={achQueue[0].id} achievement={achQueue[0]} onDone={() => setAchQueue(q => q.slice(1))} />
+    : null;
 
   if (screen === 'opening') {
     return (
       <div style={{ background:'#06101c', minHeight:'100vh', paddingBottom:56 }}>
         {toast && <Toast message={toast.message} type={toast.type} />}
+        {achToast}
         <TopBar tickets={save.tickets} />
         <OpeningScreen cardsPromise={cardsPromise} onDone={handleOpeningDone} />
         <BottomNav screen="opening" setScreen={handleSetScreen} />
-        {showAd && <AdScreen onComplete={handleAdComplete} onSkip={handleAdComplete} />}
       </div>
     );
   }
@@ -224,23 +254,16 @@ export default function App() {
   return (
     <div style={{ background:'#06101c', minHeight:'100vh', paddingBottom:62 }}>
       {toast && <Toast message={toast.message} type={toast.type} />}
-      {achQueue[0] && (
-        <AchievementToast
-          achievement={achQueue[0]}
-          onDone={() => setAchQueue(q => q.slice(1))}
-        />
-      )}
+      {achToast}
       <TopBar tickets={save.tickets} />
       <div className="scroll-area" style={{ height:'calc(100vh - 44px - 56px)', overflowY:'auto' }}>
-        {screen==='home'       && <HomeScreen       save={save} onDaily={handleDaily} onPack={handlePack} goShop={()=>handleSetScreen('shop')} />}
-        {screen==='shop'       && <ShopScreen       save={save} onPack={handlePack} onClaimCharges={handleClaimCharges} onWatchAd={handleShowAd} />}
-        {screen==='collection' && <CollectionScreen collection={save.collection} favourites={favSet} onToggleFav={handleToggleFav} />}
-        {screen==='account'    && <AccountScreen    save={save} onReset={handleReset} />}
+        {screen === 'home'       && <HomeScreen       save={save} onDaily={handleDaily} onPack={handlePack} goShop={() => handleSetScreen('shop')} />}
+        {screen === 'shop'       && <ShopScreen       save={save} onPack={handlePack} onClaimCharges={handleClaimCharges} onWatchAd={handleWatchAd} />}
+        {screen === 'collection' && <CollectionScreen collection={save.collection} favourites={favSet} onToggleFav={handleToggleFav} />}
+        {screen === 'account'    && <AccountScreen    save={save} onReset={handleReset} />}
         <Footer />
       </div>
       <BottomNav screen={screen} setScreen={handleSetScreen} />
-      {/* Ad screen rendered at app root so position:fixed covers full viewport */}
-      {showAd && <AdScreen onComplete={handleAdComplete} onSkip={handleAdComplete} />}
     </div>
   );
 }
