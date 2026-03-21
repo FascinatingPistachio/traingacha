@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { RARITY } from '../constants.js';
-import { getCharacterImageUrls, fetchFandomCharacterImage } from '../utils/fandom.js';
+import { getCharacterImageUrls } from '../utils/fandom.js';
 import '../styles/cards.css';
 
 // ── Exact 2:3 ratio (600:900) at three display sizes ─────────────────────────
@@ -89,35 +89,14 @@ function CharacterFallback({ character, size }) {
 
 // ── Thomas & Friends character banner ─────────────────────────────────────────
 function ThomasBanner({ character, size }) {
-  const hardcodedUrls = getCharacterImageUrls(character.character);
+  const urls    = getCharacterImageUrls(character.character);
+  const [urlIdx, setUrlIdx] = useState(0);   // which URL we're trying
+  const [imgOk,  setImgOk]  = useState(false);
 
-  // Three-tier state: hardcoded URLs → dynamic API URL → colour fallback
-  const [urlIdx,      setUrlIdx]      = useState(0);
-  const [dynamicUrl,  setDynamicUrl]  = useState(null);   // fetched from Fandom API
-  const [apiChecked,  setApiChecked]  = useState(false);  // have we tried the API yet?
-  const [imgOk,       setImgOk]       = useState(false);
-
-  // When all hardcoded URLs have failed, try the Fandom API once
-  const hardcodedExhausted = urlIdx >= hardcodedUrls.length;
-  useEffect(() => {
-    if (!hardcodedExhausted || apiChecked) return;
-    setApiChecked(true);
-    fetchFandomCharacterImage(character.character)
-      .then(url => { if (url) { setDynamicUrl(url); setImgOk(false); } })
-      .catch(() => {});
-  }, [hardcodedExhausted, apiChecked, character.character]);
-
-  // Active URL: try hardcoded list first, then dynamic, then null (colour fallback)
-  const currentUrl = !hardcodedExhausted
-    ? (hardcodedUrls[urlIdx] ?? null)
-    : (dynamicUrl ?? null);
-
+  const currentUrl = urls[urlIdx] ?? null;
   const handleError = () => {
-    if (!hardcodedExhausted) {
-      setUrlIdx(i => i + 1);   // try next hardcoded URL
-    } else {
-      setDynamicUrl(null);      // dynamic URL also failed — show colour fallback
-    }
+    if (urlIdx < urls.length - 1) setUrlIdx(i => i + 1);
+    // If all URLs fail, currentUrl becomes null → fallback renders
   };
 
   const sz      = SZ[size];
@@ -145,8 +124,8 @@ function ThomasBanner({ character, size }) {
         boxShadow:'0 2px 12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.2)',
         zIndex:9, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
       }}>
-        {currentUrl && !imgOk && (
-          // Show initial letter while image loads
+        {currentUrl && !imgOk && urlIdx < urls.length && (
+          // Show initial while loading
           <span style={{ position:'absolute', fontSize:circleD*0.36, fontWeight:800, color:'rgba(255,255,255,0.4)', fontFamily:'monospace' }}>
             {character.character.charAt(0)}
           </span>
@@ -159,8 +138,8 @@ function ThomasBanner({ character, size }) {
               opacity:imgOk?1:0, transition:'opacity 0.35s' }}
           />
         ) : null}
-        {/* Colour fallback: all hardcoded URLs failed, API returned nothing (or is loading) */}
-        {!currentUrl && (hardcodedExhausted && !dynamicUrl) && (
+        {/* Fallback when all URLs fail — styled initial circle */}
+        {(!currentUrl || (urlIdx >= urls.length - 1 && !imgOk)) && (
           <CharacterFallback character={character} size={circleD} />
         )}
       </div>

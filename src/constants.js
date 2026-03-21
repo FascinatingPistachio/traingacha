@@ -51,11 +51,3 @@ export const FICTIONAL_TITLE_PATTERNS = [
   /characters in thomas/i,
   /\bfictional\b/i,
 ];
-
-// Additional fictional title patterns for all T&F characters and railways
-export const ADDITIONAL_FICTIONAL_PATTERNS = [
-  /skarloey railway/i, /arlesdale railway/i, /culdee fell railway/i,
-  /mid sodor railway/i, /\bsodor\b/i,
-  /peter sam/i, /sir handel/i, /mighty mac/i, /ivo hugh/i,
-  /flying scotsman.*thomas/i,
-];
