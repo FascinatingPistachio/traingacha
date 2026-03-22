@@ -11,7 +11,7 @@ export default function AchievementToast({ achievement, onDone }) {
     <div
       onClick={onDone}
       style={{
-        position:'fixed', top:52, left:'50%', transform:'translateX(-50%)',
+        position:'fixed', top:'max(52px, calc(env(safe-area-inset-top, 0px) + 52px))', left:'50%', transform:'translateX(-50%)',
         zIndex:9998,
         background:'linear-gradient(135deg,#1a1200,#0e0c00)',
         border:'1.5px solid rgba(232,192,64,0.65)',

@@ -68,13 +68,13 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
 
   // Loading screen
   if (phase === 'animating') return (
-    <div style={{ background:'#06101c', minHeight:'calc(100vh - 100px)' }}>
+    <div style={{ background:'#06101c', minHeight:'100%', display:'flex', alignItems:'center', justifyContent:'center' }}>
       <PackAnimation onComplete={handleAnimDone} />
     </div>
   );
 
   if (phase === 'waiting') return (
-    <div style={{ minHeight:'calc(100vh - 100px)', display:'flex', flexDirection:'column',
+    <div style={{ minHeight:'60vh', display:'flex', flexDirection:'column',
       alignItems:'center', justifyContent:'center', gap:16 }}>
       <div style={{ width:32, height:32, borderRadius:'50%',
         border:'3px solid rgba(201,168,51,0.15)',
@@ -120,7 +120,7 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
     : null;
 
   return (
-    <div style={{ minHeight:'calc(100vh - 100px)', padding:'18px 10px 36px',
+    <div style={{ minHeight:'60vh', padding:'18px 10px 80px',
       display:'flex', flexDirection:'column', alignItems:'center', maxWidth:640, margin:'0 auto' }}>
 
       <div style={{ textAlign:'center', marginBottom:22 }}>

@@ -107,7 +107,7 @@ export default function CollectionScreen({ collection, favourites = new Set(), o
   );
 
   return (
-    <div style={{ padding:'12px 10px', maxWidth:560, margin:'0 auto' }}>
+    <div style={{ padding:'12px 10px 80px', maxWidth:560, margin:'0 auto' }}>
       <div style={{ textAlign:'center', marginBottom:10 }}>
         <div style={{ color:'#c9a833', fontSize:13, fontFamily:'monospace', fontWeight:700, letterSpacing:'.2em' }}>
           COLLECTION
@@ -120,7 +120,7 @@ export default function CollectionScreen({ collection, favourites = new Set(), o
       <DeckBar entries={entries} />
 
       {/* Rarity filter chips */}
-      <div style={{ display:'flex', gap:5, marginBottom:10, overflowX:'auto', paddingBottom:2 }}>
+      <div style={{ display:'flex', gap:5, marginBottom:10, overflowX:'auto', paddingBottom:2, scrollbarWidth:'none', msOverflowStyle:'none', WebkitOverflowScrolling:'touch' }}>
         <button onClick={()=>setFilter('ALL')} style={{
           background:filter==='ALL'?'rgba(201,168,51,0.15)':'transparent',
           border:`1px solid ${filter==='ALL'?'rgba(201,168,51,0.5)':'rgba(255,255,255,0.07)'}`,
@@ -165,7 +165,7 @@ export default function CollectionScreen({ collection, favourites = new Set(), o
       </div>
 
       {/* Sort pills */}
-      <div style={{ display:'flex', gap:5, marginBottom:12, overflowX:'auto', paddingBottom:2 }}>
+      <div style={{ display:'flex', gap:5, marginBottom:12, overflowX:'auto', paddingBottom:2, scrollbarWidth:'none', msOverflowStyle:'none', WebkitOverflowScrolling:'touch' }}>
         {SORT_OPTS.map(o=>(
           <button key={o.v} onClick={()=>setSort(o.v)} style={{
             background:sort===o.v?'rgba(201,168,51,0.1)':'transparent',

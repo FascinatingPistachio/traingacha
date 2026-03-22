@@ -194,8 +194,9 @@ export default function CardDetailModal({ card, count, onClose, isFav = false, o
   // Calculate responsive card scale — fill ~88vw
   const BASE_W = 200; // lg card width
   const BASE_H = 300;
-  const viewW  = typeof window !== 'undefined' ? window.innerWidth : 390;
-  const cardScale = Math.min(2.8, Math.max(1.4, (viewW - 24) / BASE_W));
+  const viewW  = typeof window !== 'undefined' ? Math.min(window.innerWidth, 480) : 390;
+  const viewH  = typeof window !== 'undefined' ? window.innerHeight : 844;
+  const cardScale = Math.min(2.6, Math.max(1.3, (viewW - 32) / BASE_W));
   const scaledW = Math.round(BASE_W * cardScale * pinchScale);
   const scaledH = Math.round(BASE_H * cardScale * pinchScale);
 
@@ -264,7 +265,7 @@ export default function CardDetailModal({ card, count, onClose, isFav = false, o
       {/* VFX overlay — fullscreen ambient particles */}
       {vfxActive && trainType !== 'unknown' && (
         <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 501 }}>
-          <TrainVFX trainType={trainType} width={viewW} height={window.innerHeight ?? 844} active />
+          <TrainVFX trainType={trainType} width={viewW} height={viewH} active />
         </div>
       )}
 

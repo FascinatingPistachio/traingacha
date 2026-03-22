@@ -1,59 +1,79 @@
-// Rail Gacha Service Worker
-const CACHE_NAME = 'railgacha-v1';
+/**
+ * Rail Gacha — Service Worker
+ * Enables PWA install on Chrome, Brave, Edge, Samsung Internet, Opera.
+ * All Chromium-based browsers support beforeinstallprompt — no special handling needed.
+ */
 
-// Cache core app shell
-const PRECACHE = [
-  '/',
-  '/index.html',
-];
+const CACHE    = 'railgacha-v2';
+const APP_URLS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
-self.addEventListener('install', (event) => {
+// ── Install: cache the app shell ──────────────────────────────────────────────
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE))
+    caches.open(CACHE).then(cache =>
+      cache.addAll(APP_URLS).catch(err => console.warn('[SW] pre-cache failed:', err))
+    )
   );
+  // Take control immediately without waiting for old SW to expire
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+// ── Activate: clean up old caches ────────────────────────────────────────────
+self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+// ── Fetch strategy ────────────────────────────────────────────────────────────
+self.addEventListener('fetch', event => {
+  const { request } = event;
+  const url = new URL(request.url);
 
-  // Cache-first for app shell (same origin)
-  if (url.origin === location.origin) {
+  // Only handle GET requests
+  if (request.method !== 'GET') return;
+
+  // Skip browser-extension and non-http(s) requests
+  if (!url.protocol.startsWith('http')) return;
+
+  // ── Same-origin app shell: Cache-first ──
+  if (url.origin === self.location.origin) {
     event.respondWith(
-      caches.match(event.request).then(cached => {
+      caches.match(request).then(cached => {
         if (cached) return cached;
-        return fetch(event.request).then(response => {
-          if (response.ok) {
+        return fetch(request).then(response => {
+          // Cache successful same-origin responses
+          if (response && response.status === 200 && response.type !== 'opaque') {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+            caches.open(CACHE).then(c => c.put(request, clone));
           }
           return response;
-        }).catch(() => caches.match('/index.html'));
+        }).catch(() => {
+          // Offline fallback: serve index.html for navigation requests
+          if (request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+        });
       })
     );
     return;
   }
 
-  // Network-first for Wikipedia/wikimedia images
-  if (url.hostname.includes('wikipedia') || url.hostname.includes('wikimedia')) {
+  // ── Wikipedia / Wikimedia images: Network-first with cache fallback ──
+  if (url.hostname.includes('wikipedia.org') || url.hostname.includes('wikimedia.org')) {
     event.respondWith(
-      fetch(event.request).then(response => {
-        if (response.ok) {
+      fetch(request).then(response => {
+        if (response && response.status === 200) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          caches.open(CACHE).then(c => c.put(request, clone));
         }
         return response;
-      }).catch(() => caches.match(event.request))
+      }).catch(() => caches.match(request))
     );
     return;
   }
+
+  // Everything else: network only (don't cache external fonts, analytics, etc.)
 });

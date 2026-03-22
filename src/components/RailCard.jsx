@@ -152,16 +152,13 @@ export default function RailCard({
       }, STAT_CONFIG[0]).key
     : null;
 
-  // 3D tilt
-  const onMouseMove = useCallback((e) => {
+  // 3D tilt — works for both mouse and touch
+  const applyTilt = useCallback((nx, ny) => {
     const el = ref.current;
     if (!el || dimmed) return;
     cancelAnimationFrame(raf.current);
     raf.current = requestAnimationFrame(() => {
       if (!ref.current) return;
-      const r  = el.getBoundingClientRect();
-      const nx = (e.clientX - r.left) / r.width;
-      const ny = (e.clientY - r.top)  / r.height;
       el.style.transform =
         `perspective(${sz.w*4}px) rotateX(${(ny-0.5)*-18}deg) rotateY(${(nx-0.5)*18}deg) scale(1.06) translateZ(12px)`;
       el.style.setProperty('--hx', `${nx*100}%`);
@@ -172,7 +169,26 @@ export default function RailCard({
     });
   }, [dimmed, isHigh, sz.w]);
 
-  const onMouseLeave = useCallback(() => {
+  const onMouseMove = useCallback((e) => {
+    const el = ref.current;
+    if (!el) return;
+    const r  = el.getBoundingClientRect();
+    applyTilt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+  }, [applyTilt]);
+
+  const onTouchMove = useCallback((e) => {
+    if (e.touches.length !== 1) return;
+    const el = ref.current;
+    if (!el) return;
+    const r  = el.getBoundingClientRect();
+    const t  = e.touches[0];
+    applyTilt(
+      Math.max(0, Math.min(1, (t.clientX - r.left) / r.width)),
+      Math.max(0, Math.min(1, (t.clientY - r.top)  / r.height))
+    );
+  }, [applyTilt]);
+
+  const resetTilt = useCallback(() => {
     cancelAnimationFrame(raf.current);
     const el = ref.current;
     if (!el) return;
@@ -182,11 +198,15 @@ export default function RailCard({
     if (shine) shine.style.opacity = '0';
   }, [sz.w]);
 
+  const onMouseLeave = resetTilt;
+
   return (
     <div ref={ref}
       onClick={onClick}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
+      onTouchMove={onTouchMove}
+      onTouchEnd={resetTilt}
       style={{
         width:sz.w, height:sz.h,  // explicit 2:3
         display:'flex', flexDirection:'column',

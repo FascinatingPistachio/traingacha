@@ -41,7 +41,7 @@ export default function AccountScreen({ save, onReset }) {
   const LABEL = { fontSize:7.5, color:'rgba(255,255,255,0.25)', fontFamily:'monospace', letterSpacing:'.12em', marginBottom:6 };
 
   return (
-    <div style={{ padding:'16px 13px', maxWidth:480, margin:'0 auto', display:'flex', flexDirection:'column', gap:12 }}>
+    <div style={{ padding:'16px 13px 80px', maxWidth:480, margin:'0 auto', display:'flex', flexDirection:'column', gap:12 }}>
       <div style={{ textAlign:'center', fontSize:13, color:'#c9a833', fontFamily:'monospace',
         letterSpacing:'.2em', marginBottom:4 }}>ACCOUNT</div>
 

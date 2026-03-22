@@ -68,8 +68,9 @@ export default function LoginScreen({ onLogin }) {
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#06101c',
+      minHeight: '100dvh', background: '#06101c',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 'max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom))',
     }}>
       <div style={cardStyle}>
         <div style={{ fontSize: 52, marginBottom: 4, filter: 'drop-shadow(0 0 12px rgba(201,168,51,0.5))' }}>

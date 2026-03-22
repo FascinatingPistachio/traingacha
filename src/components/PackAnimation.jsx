@@ -364,7 +364,7 @@ export default function PackAnimation({ onComplete }) {
       <div
         onClick={handleTap}
         style={{
-          minHeight: 'calc(100vh - 100px)',
+          minHeight: '80vh',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           gap: 20, padding: '20px 16px',

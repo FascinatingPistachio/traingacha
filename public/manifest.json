@@ -1,50 +1,51 @@
 {
   "name": "Rail Gacha",
   "short_name": "Rail Gacha",
-  "description": "Collect train cards from Wikipedia. Open packs, discover rarities, battle bots.",
+  "description": "Collect real locomotive cards from Wikipedia. Steam, diesel, electric — open packs, battle bots, build your collection.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
-  "orientation": "portrait",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
   "background_color": "#06101c",
-  "theme_color": "#c9a833",
+  "theme_color": "#06101c",
+  "lang": "en",
   "categories": ["games", "entertainment"],
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%2306101c'/><text y='380' x='50' font-size='340'>🚂</text></svg>",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "icon-512.png",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
+      "purpose": "any"
+    },
     {
-      "src": "screenshot-mobile.png",
-      "sizes": "390x844",
+      "src": "/icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Rail Gacha on mobile"
+      "purpose": "maskable"
     }
   ],
+  "screenshots": [],
   "shortcuts": [
     {
       "name": "Open Packs",
       "short_name": "Packs",
-      "description": "Open card packs",
       "url": "/",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
-  ]
+  ],
+  "related_applications": []
 }

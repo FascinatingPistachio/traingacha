@@ -9,7 +9,9 @@ export default function Toast({ message, type = 'info' }) {
   const s = STYLES[type] ?? STYLES.info;
   return (
     <div style={{
-      position: 'fixed', top: 14, left: '50%',
+      position: 'fixed',
+      top: 'max(60px, calc(env(safe-area-inset-top, 0px) + 60px))',
+      left: '50%',
       transform: 'translateX(-50%)',
       background: s.bg,
       border: `1px solid ${s.border}`,
@@ -20,9 +22,13 @@ export default function Toast({ message, type = 'info' }) {
       fontFamily: 'monospace',
       zIndex: 9999,
       whiteSpace: 'nowrap',
+      maxWidth: 'calc(100vw - 32px)',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
       animation: 'fadeUp 0.3s ease-out',
       boxShadow: '0 4px 24px rgba(0,0,0,0.65)',
       pointerEvents: 'none',
+      backdropFilter: 'blur(8px)',
     }}>
       {message}
     </div>

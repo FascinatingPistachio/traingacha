@@ -44,7 +44,7 @@ export default function ShopScreen({ save, onPack, onClaimCharges, onWatchAd }) 
   ];
 
   return (
-    <div style={{ padding:'18px 14px', maxWidth:480, margin:'0 auto' }}>
+    <div style={{ padding:'18px 14px 80px', maxWidth:480, margin:'0 auto' }}>
       <h2 style={{ color:'#c9a833', margin:'0 0 16px', fontSize:13, fontFamily:'monospace', letterSpacing:'.2em', textAlign:'center' }}>
         TICKET WINDOW
       </h2>

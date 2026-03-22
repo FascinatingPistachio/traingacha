@@ -5,8 +5,16 @@ import './styles/cards.css';
 import './utils/cheats.js';
 import App from './App.jsx';
 
-createRoot(document.getElementById('root')).render(
+const root = createRoot(document.getElementById('root'));
+root.render(
   <StrictMode>
     <App />
   </StrictMode>
 );
+
+// Remove the HTML splash screen once React has rendered
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    if (window.__removeSplash) window.__removeSplash();
+  });
+});

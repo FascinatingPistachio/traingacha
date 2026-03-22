@@ -111,7 +111,7 @@ export default function RaidScreen({ collection, onEarn }) {
   if (phase === 'lobby') {
     const rs = RARITY[boss.rarity] ?? RARITY.E;
     return (
-      <div style={{ padding:'16px 12px', display:'flex', flexDirection:'column', gap:16 }}>
+      <div style={{ padding:'16px 12px 80px', display:'flex', flexDirection:'column', gap:16 }}>
         <div style={{ textAlign:'center' }}>
           <div style={{ fontSize:9, color:'rgba(255,255,255,0.35)', fontFamily:'monospace',
             letterSpacing:'.15em', marginBottom:4 }}>DAILY RAID</div>

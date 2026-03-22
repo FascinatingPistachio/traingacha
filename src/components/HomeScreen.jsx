@@ -47,7 +47,7 @@ export default function HomeScreen({ save, onDaily, onPack, goShop }) {
     .sort((a,b) => (b.stats?.overall ?? 0) - (a.stats?.overall ?? 0))[0];
 
   return (
-    <div style={{ padding:'16px 13px', maxWidth:480, margin:'0 auto', display:'flex', flexDirection:'column', gap:12 }}>
+    <div style={{ padding:'16px 13px 80px', maxWidth:480, margin:'0 auto', display:'flex', flexDirection:'column', gap:12 }}>
 
       {/* Station banner */}
       <div style={{ background:'linear-gradient(135deg,#0d1e32,#081525)',
@@ -125,9 +125,12 @@ export default function HomeScreen({ save, onDaily, onPack, goShop }) {
         <div>
           <div style={{ fontSize:8, color:'rgba(255,255,255,0.25)', fontFamily:'monospace',
             letterSpacing:'.12em', marginBottom:8 }}>RECENTLY PULLED</div>
-          <div style={{ display:'flex', gap:8, overflowX:'auto', paddingBottom:4 }}>
+          <div style={{ display:'flex', gap:8, overflowX:'auto', paddingBottom:6,
+            WebkitOverflowScrolling:'touch', scrollbarWidth:'none' }}>
             {recentCards.map(card => (
-              <RailCard key={card.id} card={card} size="sm" />
+              <div key={card.id} style={{ flexShrink:0 }}>
+                <RailCard card={card} size="sm" />
+              </div>
             ))}
           </div>
         </div>

@@ -2,69 +2,114 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <!-- viewport-fit=cover fills the entire screen including notch area -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, minimum-scale=1, maximum-scale=1" />
+
+    <!-- PWA / app behaviour -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Rail Gacha" />
-    <meta name="theme-color" content="#c9a833" />
-    <meta name="description" content="Collect train cards from Wikipedia. Open packs, discover rarities, complete your collection." />
+    <meta name="application-name" content="Rail Gacha" />
+    <meta name="theme-color" content="#06101c" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#06101c" />
+    <meta name="msapplication-TileColor" content="#06101c" />
+    <meta name="msapplication-navbutton-color" content="#c9a833" />
 
-    <!-- Open Graph -->
+    <!-- SEO / Open Graph -->
+    <meta name="description" content="Collect real locomotive cards from Wikipedia. Steam, diesel, electric — open packs, battle bots, build your collection." />
     <meta property="og:title" content="Rail Gacha" />
-    <meta property="og:description" content="Collect train cards from Wikipedia." />
+    <meta property="og:description" content="Collect train cards from Wikipedia. Open packs, discover rarities, battle." />
     <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
 
     <title>Rail Gacha</title>
 
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json" />
+    <!-- PWA Manifest (required for all browsers to offer install) -->
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🚂</text></svg>" />
-
-    <!-- Apple touch icon -->
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%2306101c'/><text y='140' x='10' font-size='130'>🚂</text></svg>" />
+    <!-- Favicon & app icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
 
     <style>
-      /* Prevent iOS bounce scroll */
-      html { height: 100%; overflow: hidden; }
-      body {
-        height: 100%; overflow: hidden;
-        /* Safe areas for notch/home bar */
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
+      /* Prevent flash of unstyled content */
+      html, body {
         background: #06101c;
-        /* Prevent text selection on mobile */
-        -webkit-user-select: none; user-select: none;
-        /* Prevent tap highlights */
-        -webkit-tap-highlight-color: transparent;
-        /* Prevent iOS callout on long press */
-        -webkit-touch-callout: none;
+        margin: 0; padding: 0;
+        /* Prevent pull-to-refresh and bouncy scroll on iOS */
         overscroll-behavior: none;
+        overflow: hidden;
+        position: fixed;
+        width: 100%; height: 100%;
       }
-      #root { height: 100%; }
+      #root { width: 100%; height: 100%; }
+      /* Initial loading indicator */
+      #loading-splash {
+        position: fixed; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 16px; background: #06101c;
+        transition: opacity 0.3s;
+      }
+      #loading-splash.fade { opacity: 0; pointer-events: none; }
+      #loading-splash .loco { font-size: 40px; }
+      #loading-splash .txt  {
+        color: rgba(201,168,51,0.5);
+        font-family: monospace; font-size: 10px;
+        letter-spacing: .2em;
+      }
     </style>
   </head>
   <body>
+    <!-- Splash shown before React hydrates -->
+    <div id="loading-splash">
+      <div class="loco">🚂</div>
+      <div class="txt">RAIL GACHA</div>
+    </div>
+
     <div id="root"></div>
+
     <script type="module" src="/src/main.jsx"></script>
+
     <script>
-      // Register service worker for PWA install
+      // Remove splash once React renders
+      window.__removeSplash = function() {
+        var s = document.getElementById('loading-splash');
+        if (s) { s.classList.add('fade'); setTimeout(function(){ s.remove(); }, 350); }
+      };
+
+      // Service Worker registration (enables PWA install on Chrome, Brave, Edge, Samsung)
+      // Brave Android fires beforeinstallprompt just like Chrome — no special handling needed.
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(reg) {
+              console.log('[SW] registered, scope:', reg.scope);
+            })
+            .catch(function(err) {
+              console.warn('[SW] registration failed:', err);
+            });
         });
       }
 
-      // Capture beforeinstallprompt for custom install button
+      // Capture the install prompt BEFORE React loads
+      // Works in: Chrome Android, Brave Android, Edge Android, Samsung Internet, Opera Mobile
       window._pwaInstallPrompt = null;
-      window.addEventListener('beforeinstallprompt', (e) => {
+      window.addEventListener('beforeinstallprompt', function(e) {
+        // Prevent the browser's default mini-infobar
         e.preventDefault();
         window._pwaInstallPrompt = e;
+        // React components listen for this event
         window.dispatchEvent(new CustomEvent('pwa-installable'));
+        console.log('[PWA] install prompt captured');
+      });
+
+      window.addEventListener('appinstalled', function() {
+        window._pwaInstallPrompt = null;
+        console.log('[PWA] installed to home screen');
       });
     </script>
   </body>

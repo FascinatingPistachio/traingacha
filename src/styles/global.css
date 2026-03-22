@@ -1,18 +1,104 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root { height: 100%; background: #06101c; color: #e8e0d0; font-family: Georgia,'Times New Roman',serif; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+/* ═══════════════════════════════════════════════════════
+   RAIL GACHA — Global Styles
+   ═══════════════════════════════════════════════════════ */
 
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+html {
+  background: #06101c;
+  /* Prevent iOS font size inflation */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: #06101c;
+  color: #e8e0d0;
+  font-family: Georgia, 'Times New Roman', serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  /* Prevent text selection on game UI */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Allow text selection in info / wiki content */
+p, .selectable { -webkit-user-select: text; user-select: text; }
+
+#root {
+  background: #06101c;
+}
+
+/* ── Mobile App Shell ──────────────────────────────────── */
+/* The app shell fills the viewport exactly like a native app.
+   It uses dvh so it tracks the real viewport on mobile (excludes browser chrome). */
+.app-shell {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background: #06101c;
+  overflow: hidden;
+  /* Respect notch / home indicator */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Scrollable content area fills between TopBar and BottomNav */
+.scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Thin gold scrollbar */
+.scroll-area::-webkit-scrollbar { width: 3px; }
+.scroll-area::-webkit-scrollbar-track { background: transparent; }
+.scroll-area::-webkit-scrollbar-thumb { background: rgba(201,168,51,0.22); border-radius: 2px; }
+
+/* ── Bottom Nav ────────────────────────────────────────── */
+.bottom-nav {
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Keyframes ─────────────────────────────────────────── */
 @keyframes shimmer    { 0%{background-position:200% center}100%{background-position:-200% center} }
 @keyframes flipIn     { 0%{transform:perspective(700px) rotateY(90deg) scale(0.88);opacity:0}65%{transform:perspective(700px) rotateY(-5deg) scale(1.02)}100%{transform:perspective(700px) rotateY(0deg) scale(1);opacity:1} }
+@keyframes slideUp    { from{transform:translateY(18px) scale(0.95);opacity:0}to{transform:translateY(0) scale(1);opacity:1} }
 @keyframes fadeUp     { from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1} }
+@keyframes fadeIn     { from{opacity:0}to{opacity:1} }
 @keyframes pulse      { 0%,100%{opacity:1}50%{opacity:.48} }
 @keyframes goldPulse  { 0%,100%{box-shadow:0 0 22px rgba(232,192,64,.45)}50%{box-shadow:0 0 55px rgba(232,192,64,.82)} }
 @keyframes epicGlow   { 0%,100%{box-shadow:0 0 18px rgba(181,123,238,.4)}50%{box-shadow:0 0 44px rgba(181,123,238,.72)} }
 @keyframes spin       { to{transform:rotate(360deg)} }
-@keyframes cardFanIn  { 0%{transform:translateY(60px) scale(0.85);opacity:0}60%{transform:translateY(-8px) scale(1.03)}100%{transform:translateY(0) scale(1);opacity:1} }
-@keyframes glowBurst  { 0%{opacity:0;transform:scale(0.6)}40%{opacity:1}100%{opacity:0;transform:scale(2.2)} }
-@keyframes packBob    { 0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)} }
+@keyframes packBob    { 0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)} }
+@keyframes popIn      { 0%{transform:scale(0.5);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1} }
+@keyframes legendBurst{ 0%{transform:scale(0.5) rotateY(90deg);opacity:0;filter:brightness(3)}40%{transform:scale(1.08) rotateY(-4deg);filter:brightness(1.5)}70%{transform:scale(0.97) rotateY(2deg)}100%{transform:scale(1) rotateY(0);opacity:1;filter:brightness(1)} }
 
-/* MYTHIC rainbow pulse */
+/* VFX */
+@keyframes steamPuff  { 0%{transform:scale(0.3) translateY(0);opacity:0}20%{opacity:0.7}100%{transform:scale(2.8) translateY(-30px);opacity:0} }
+@keyframes smokeBillow{ 0%{transform:scale(0.4) translateY(0) rotate(0deg);opacity:0}15%{opacity:0.6}100%{transform:scale(3.2) translateY(-45px) rotate(20deg);opacity:0} }
+@keyframes maglevShimmer{ 0%{background-position:-200% center}100%{background-position:200% center} }
+
+/* Battle */
+@keyframes winFlash   { 0%{background:rgba(76,175,80,0)}30%{background:rgba(76,175,80,0.18)}100%{background:rgba(76,175,80,0)} }
+@keyframes loseFlash  { 0%{background:rgba(239,83,80,0)}30%{background:rgba(239,83,80,0.18)}100%{background:rgba(239,83,80,0)} }
+@keyframes screenShake{ 0%,100%{transform:translate(0,0)}15%{transform:translate(-4px,2px)}30%{transform:translate(4px,-2px)}45%{transform:translate(-3px,-3px)}60%{transform:translate(3px,2px)}75%{transform:translate(-2px,3px)}90%{transform:translate(2px,-1px)} }
+
+/* Sparks */
+@keyframes sparkFly   { 0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0} }
+
+/* MYTHIC rainbow */
 @keyframes mythicPulse {
   0%  { box-shadow: 0 0 28px rgba(160,180,255,0.6), 0 0 0 1px rgba(180,200,255,0.4); }
   25% { box-shadow: 0 0 28px rgba(255,160,220,0.6), 0 0 0 1px rgba(255,180,230,0.4); }
@@ -25,19 +111,37 @@ html, body, #root { height: 100%; background: #06101c; color: #e8e0d0; font-fami
   50% { background-position: 100% 50%; }
   100%{ background-position: 0%   50%; }
 }
-/* Crane cable drop */
+
+/* Crane / pack opening */
 @keyframes cableDown  { from{height:0;opacity:0}to{height:var(--cable-h);opacity:1} }
 @keyframes boltSpin   { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
 @keyframes hookSwing  { 0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)} }
 @keyframes lidLift    { from{transform:translateY(0) rotate(0deg);opacity:1}to{transform:translateY(-280px) rotate(-12deg);opacity:0} }
 
-.tc      { position:relative; border-radius:12px; overflow:hidden; flex-shrink:0; transition:transform .22s ease,box-shadow .22s ease; }
+/* Stat bars */
+@keyframes statFill   { from{width:0%}to{width:var(--w,100%)} }
+.stat-bar-fill { animation: statFill 0.85s cubic-bezier(0.25,1,0.5,1) both; animation-delay: var(--delay,0s); }
+
+/* Number roll */
+@keyframes numRoll    { 0%{transform:translateY(-100%);opacity:0}60%{transform:translateY(4px)}100%{transform:translateY(0);opacity:1} }
+@keyframes countUp    { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} }
+
+/* ── Utility classes ───────────────────────────────────── */
+.fade-up  { animation: fadeUp 0.4s ease-out both; }
+.flash-win  { animation: winFlash  0.5s ease-out; }
+.flash-lose { animation: loseFlash 0.5s ease-out; }
+.screen-shake { animation: screenShake 0.45s cubic-bezier(0.36,0.07,0.19,0.97) both; }
+.spark { animation: sparkFly 0.6s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+.glow-L { animation: goldPulse  2.5s ease-in-out infinite; }
+.glow-M { animation: mythicPulse 2s ease-in-out infinite; }
+
+/* ── Card base classes ─────────────────────────────────── */
+.tc { position:relative; border-radius:12px; overflow:hidden; flex-shrink:0; transition:transform .22s ease,box-shadow .22s ease; }
 .tc.clickable { cursor:pointer; }
 .tc.clickable:hover { transform:translateY(-7px) scale(1.05) rotate(-0.5deg); }
 .tc.revealed  { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1); }
 .tc.r-L { animation:goldPulse 2.5s ease-in-out infinite; }
 .tc.r-E { animation:epicGlow  2.8s ease-in-out infinite; }
-.tc.r-M { /* handled by cards.css mythicBorder */ }
 .tc.r-L.revealed { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1), goldPulse 2.5s ease-in-out 0.5s infinite; }
 .tc.r-E.revealed { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1), epicGlow  2.8s ease-in-out 0.5s infinite; }
 .tc.r-M.revealed { animation:flipIn .46s cubic-bezier(0.22,1,0.36,1); }
@@ -51,466 +155,59 @@ html, body, #root { height: 100%; background: #06101c; color: #e8e0d0; font-fami
 .tc-back { position:relative; border-radius:12px; overflow:hidden; flex-shrink:0; transition:transform .22s ease; border:2.5px solid rgba(201,168,51,.35); background:linear-gradient(160deg,#0d1f35,#060f1c); }
 .tc-back.tappable:hover { transform:translateY(-10px) scale(1.08) rotate(.5deg); cursor:pointer; }
 
+/* ── Buttons & nav ─────────────────────────────────────── */
 .spinner { width:20px; height:20px; border:2px solid rgba(255,255,255,.12); border-top-color:rgba(255,255,255,.55); border-radius:50%; animation:spin .75s linear infinite; }
-.nav-btn { flex:1; background:none; border:none; border-top:2px solid transparent; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; color:#1a3050; padding:0; transition:color .15s; }
-.nav-btn:hover  { background:rgba(201,168,51,.09)!important; }
-.nav-btn.active { color:#c9a833!important; border-top-color:#c9a833!important; }
+.nav-btn { flex:1; background:none; border:none; border-top:2px solid transparent; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; color:rgba(255,255,255,0.22); padding:0; transition:color .15s,border-color .15s; }
+.nav-btn:hover  { background:rgba(201,168,51,.09) !important; }
+.nav-btn.active { color:#c9a833 !important; border-top-color:#c9a833 !important; }
 .btn { transition:filter .15s,transform .1s; }
 .btn:hover  { filter:brightness(1.12); }
 .btn:active { transform:scale(.97); }
-.fade-up { animation:fadeUp .4s ease-out both; }
-.scroll-area { overflow-y:auto; -webkit-overflow-scrolling:touch; }
-.scroll-area::-webkit-scrollbar { width:4px; }
-.scroll-area::-webkit-scrollbar-track { background:transparent; }
-.scroll-area::-webkit-scrollbar-thumb { background:rgba(201,168,51,.2); border-radius:2px; }
+button { cursor: pointer; }
 
-/* ── TCG Card holographic effects ─────────────────────────────────────── */
+/* ── Holographic card effects ──────────────────────────── */
 .holo-legendary {
-  background: linear-gradient(
-    125deg,
-    transparent 0%, rgba(255,220,50,0.06) 20%,
-    rgba(255,180,0,0.10) 35%, rgba(255,255,100,0.06) 50%,
-    rgba(200,160,0,0.10) 65%, rgba(255,220,50,0.06) 80%,
-    transparent 100%
+  background: linear-gradient(125deg,
+    transparent 0%,rgba(255,220,50,0.06) 20%,rgba(255,180,0,.10) 35%,
+    rgba(255,255,100,.06) 50%,rgba(200,160,0,.10) 65%,rgba(255,220,50,.06) 80%,transparent 100%
   );
   animation: holo-shift 4s ease-in-out infinite;
 }
 .holo-mythic {
-  background: linear-gradient(
-    125deg,
-    rgba(80,60,255,0.08) 0%, rgba(140,80,255,0.12) 20%,
-    rgba(60,180,255,0.10) 40%, rgba(140,80,255,0.12) 60%,
-    rgba(80,60,255,0.08) 80%, rgba(200,160,255,0.10) 100%
+  background: linear-gradient(125deg,
+    rgba(255,100,200,0),rgba(100,200,255,.08),rgba(200,255,100,.08),rgba(255,200,100,.08),rgba(255,100,200,0)
   );
-  animation: holo-shift 3s ease-in-out infinite;
+  animation: holo-shift 2.5s ease-in-out infinite alternate;
 }
 @keyframes holo-shift {
-  0%,100% { opacity:0.6; transform:translateX(-5%) skewX(-1deg); }
-  50%      { opacity:1;   transform:translateX(5%)  skewX(1deg);  }
-}
-
-/* Achievement drain bar */
-@keyframes ach-drain {
-  from { width:100%; }
-  to   { width:0%; }
-}
-
-/* Pop-in animation */
-@keyframes popIn {
-  0%   { transform:scale(0.5); opacity:0; }
-  70%  { transform:scale(1.1); }
-  100% { transform:scale(1);   opacity:1; }
-}
-
-/* Card hover lift */
-.rail-card:hover { transform:translateY(-3px) scale(1.02); }
-.rail-card--high:hover { transform:translateY(-4px) scale(1.03); }
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   3D CARD SYSTEM
-═══════════════════════════════════════════════════════════════════════════ */
-
-.card-3d-wrap {
-  perspective: 800px;
-  transform-style: preserve-3d;
-}
-.card-3d-inner {
-  transform-style: preserve-3d;
-  transition: transform 0.08s ease-out;
-  will-change: transform;
-  position: relative;
-}
-.card-shine {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 30;
-  opacity: 0;
-  transition: opacity 0.15s;
-  background: radial-gradient(ellipse at var(--mx,50%) var(--my,50%),
-    rgba(255,255,255,0.22) 0%,
-    rgba(255,255,255,0.06) 40%,
-    transparent 70%);
-}
-.card-3d-wrap:hover .card-shine { opacity: 1; }
-
-/* ── Full-screen card detail 3D flip ── */
-.modal-card-scene {
-  perspective: 1000px;
-}
-.modal-card-flipper {
-  transform-style: preserve-3d;
-  transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-}
-.modal-card-flipper.flipped { transform: rotateY(180deg); }
-.modal-face-front,
-.modal-face-back {
-  backface-visibility: hidden;
-  position: absolute;
-  inset: 0;
-}
-.modal-face-back { transform: rotateY(180deg); }
-
-/* ── Stat bar animations ── */
-@keyframes statFill {
-  from { width: 0%; }
-  to   { width: var(--w); }
-}
-.stat-bar-fill {
-  animation: statFill 0.9s cubic-bezier(0.25, 1, 0.5, 1) both;
-  animation-delay: var(--delay, 0s);
-}
-
-/* ── Score counter roll-up ── */
-@keyframes countUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ── Legendary entrance burst ── */
-@keyframes legendBurst {
-  0%   { opacity: 0; transform: scale(0.3) rotate(-10deg); }
-  50%  { opacity: 1; transform: scale(1.08) rotate(2deg); }
-  70%  { transform: scale(0.97) rotate(-1deg); }
-  100% { transform: scale(1) rotate(0deg); }
-}
-.legend-burst { animation: legendBurst 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-
-/* ── Particle sparks ── */
-@keyframes spark {
-  0%   { transform: translate(0,0) scale(1); opacity: 1; }
-  100% { transform: translate(var(--tx,40px),var(--ty,-40px)) scale(0); opacity: 0; }
-}
-.spark {
-  position: absolute;
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  pointer-events: none;
-  animation: spark 0.8s ease-out both;
-}
-
-/* ── Collection grid card wrapper ── */
-.coll-card-wrap {
-  cursor: pointer;
-  border-radius: 10px;
-  transition: transform 0.18s cubic-bezier(0.34,1.4,0.64,1);
-}
-.coll-card-wrap:hover { transform: translateY(-6px) scale(1.03); }
-.coll-card-wrap:active { transform: scale(0.97); }
-
-/* ── Rarity glow pulse ── */
-/* ── Modal backdrop blur ── */
-@keyframes backdropIn {
-  from { opacity: 0; backdrop-filter: blur(0px); }
-  to   { opacity: 1; backdrop-filter: blur(16px); }
-}
-.modal-backdrop {
-  animation: backdropIn 0.25s ease-out both;
-}
-
-/* ── Slide up panel ── */
-@keyframes slideUp {
-  from { transform: translateY(40px); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
-}
-.slide-up { animation: slideUp 0.35s cubic-bezier(0.34,1.2,0.64,1) both; }
-
-/* ── Number roll animation ── */
-@keyframes numRoll {
-  0%   { transform: translateY(-100%); opacity: 0; }
-  60%  { transform: translateY(4px); }
-  100% { transform: translateY(0); opacity: 1; }
-}
-
-/* Shimmer sweep (used by stat bars and holographic foil) */
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
-}
-
-/* ── Marvel Snap style card effects ─────────────────────────────────────── */
-.card-shine-spot {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  z-index: 11;
-  opacity: 0;
-  transition: opacity 0.15s;
-  background: radial-gradient(
-    ellipse 55% 45% at var(--sx, 50%) var(--sy, 50%),
-    rgba(255,255,255,0.22) 0%,
-    transparent 70%
-  );
-}
-
-/* Rarity card glow animations */
-@keyframes legendGlow {
-  0%,100% { box-shadow:0 0 14px rgba(232,192,64,0.35),0 4px 20px rgba(0,0,0,0.7); }
-  50%      { box-shadow:0 0 30px rgba(232,192,64,0.7), 0 4px 20px rgba(0,0,0,0.7); }
-}
-@keyframes mythicGlow {
-  0%   { box-shadow:0 0 20px rgba(140,100,255,0.5),0 4px 20px rgba(0,0,0,0.7); }
-  33%  { box-shadow:0 0 20px rgba(100,200,255,0.5),0 4px 20px rgba(0,0,0,0.7); }
-  66%  { box-shadow:0 0 20px rgba(255,100,200,0.5),0 4px 20px rgba(0,0,0,0.7); }
-  100% { box-shadow:0 0 20px rgba(140,100,255,0.5),0 4px 20px rgba(0,0,0,0.7); }
-}
-.glow-L { animation: legendGlow 2s ease-in-out infinite; }
-.glow-M { animation: mythicGlow 2s linear infinite; }
-
-/* ── Extra polish animations ─────────────────────────────────────────────── */
-/* Card glow pulses */
-@keyframes legendGlow {
-  0%,100% { box-shadow: 0 0 16px rgba(232,192,64,0.4),  0 4px 24px rgba(0,0,0,0.7); }
-  50%      { box-shadow: 0 0 32px rgba(232,192,64,0.75), 0 4px 24px rgba(0,0,0,0.7); }
-}
-@keyframes mythicGlow {
-  0%   { box-shadow: 0 0 22px rgba(140,100,255,0.55); }
-  33%  { box-shadow: 0 0 22px rgba(100,200,255,0.55); }
-  66%  { box-shadow: 0 0 22px rgba(255,100,200,0.55); }
-  100% { box-shadow: 0 0 22px rgba(140,100,255,0.55); }
-}
-.glow-L { animation: legendGlow 2s ease-in-out infinite; }
-.glow-M { animation: mythicGlow 1.8s linear infinite; }
-
-/* Stat bar fill animation */
-@keyframes statFill {
-  from { width:0%; }
-  to   { width:var(--w,100%); }
-}
-.stat-bar-fill {
-  animation: statFill 0.85s cubic-bezier(0.25,1,0.5,1) both;
-  animation-delay: var(--delay,0s);
-}
-
-/* shimmer */
-@keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position:-200% 0; }
-}
-
-/* number count up */
-@keyframes countUp {
-  from { opacity:0; transform:translateY(6px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-
-/* ══════════════════════════════════════════════════
-   PWA / MOBILE APP ENHANCEMENTS
-   ══════════════════════════════════════════════════ */
-
-/* Full-height app shell with safe areas */
-html, body, #root {
-  height: 100%;
-  max-height: 100%;
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
-  /* Support dynamic viewport height on mobile browsers */
-  height: 100dvh;
-}
-
-/* Make the main app scrollable inside the fixed shell */
-.app-shell {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  background: #06101c;
-  overflow: hidden;
-  /* Respect notch / home bar */
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* Smooth native-feeling scroll for content areas */
-.scroll-area {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  scroll-behavior: smooth;
-}
-
-/* Scrollbar styling */
-.scroll-area::-webkit-scrollbar { width: 3px; }
-.scroll-area::-webkit-scrollbar-track { background: transparent; }
-.scroll-area::-webkit-scrollbar-thumb { background: rgba(201,168,51,0.2); border-radius: 2px; }
-
-/* Bottom nav safe area */
-.bottom-nav {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 4px);
-}
-
-/* ── VFX Animations ─────────────────────────────── */
-
-/* Steam puff */
-@keyframes steamPuff {
-  0%   { transform: scale(0.3) translateY(0); opacity: 0; }
-  20%  { opacity: 0.7; }
-  100% { transform: scale(2.5) translateY(-40px); opacity: 0; }
-}
-
-/* Diesel smoke billow */
-@keyframes smokeBillow {
-  0%   { transform: scale(0.4) translateY(0) rotate(0deg); opacity: 0; }
-  15%  { opacity: 0.6; }
-  100% { transform: scale(3) translateY(-50px) rotate(20deg); opacity: 0; }
-}
-
-/* Electric spark */
-@keyframes electricSpark {
-  0%   { transform: scale(1) translate(0,0); opacity: 1; }
-  100% { transform: scale(0) translate(var(--sx,20px), var(--sy,-20px)); opacity: 0; }
-}
-
-/* Speed line whoosh */
-@keyframes speedLine {
-  0%   { transform: translateX(0) scaleX(1); opacity: 0.7; }
-  100% { transform: translateX(-120%) scaleX(0.2); opacity: 0; }
-}
-
-/* Boiling bubble pop */
-@keyframes bubblePop {
-  0%   { transform: scale(0); opacity: 0; }
-  50%  { transform: scale(1.2); opacity: 0.8; }
-  100% { transform: scale(0); opacity: 0; }
-}
-
-/* Ember float */
-@keyframes emberFloat {
-  0%   { transform: translateY(0) translateX(0) scale(1); opacity: 1; }
-  100% { transform: translateY(-60px) translateX(var(--ex, 10px)) scale(0); opacity: 0; }
-}
-
-/* Screen shake for legendary/epic */
-@keyframes screenShake {
-  0%,100% { transform: translate(0,0); }
-  15%     { transform: translate(-4px, 2px); }
-  30%     { transform: translate(4px, -2px); }
-  45%     { transform: translate(-3px, -3px); }
-  60%     { transform: translate(3px, 2px); }
-  75%     { transform: translate(-2px, 3px); }
-  90%     { transform: translate(2px, -1px); }
-}
-.screen-shake { animation: screenShake 0.45s cubic-bezier(0.36,0.07,0.19,0.97) both; }
-
-/* Battle stat win flash */
-@keyframes winFlash {
-  0%   { background: rgba(76,175,80,0); }
-  30%  { background: rgba(76,175,80,0.18); }
-  100% { background: rgba(76,175,80,0); }
-}
-@keyframes loseFlash {
-  0%   { background: rgba(239,83,80,0); }
-  30%  { background: rgba(239,83,80,0.18); }
-  100% { background: rgba(239,83,80,0); }
-}
-.flash-win  { animation: winFlash  0.5s ease-out; }
-.flash-lose { animation: loseFlash 0.5s ease-out; }
-
-/* Legendary card burst */
-@keyframes legendBurst {
-  0%   { transform: scale(0.5) rotateY(90deg); opacity: 0; filter: brightness(3); }
-  40%  { transform: scale(1.08) rotateY(-4deg); filter: brightness(1.5); }
-  70%  { transform: scale(0.97) rotateY(2deg); }
-  100% { transform: scale(1) rotateY(0deg); opacity: 1; filter: brightness(1); }
-}
-
-/* Card zoom in */
-@keyframes slideUp {
-  from { transform: translateY(30px) scale(0.92); opacity: 0; }
-  to   { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-/* Spark particle animation */
-@keyframes sparkFly {
-  0%   { transform: translate(0,0) scale(1); opacity: 1; }
-  100% { transform: translate(var(--tx),var(--ty)) scale(0); opacity: 0; }
-}
-.spark { animation: sparkFly 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
-
-/* Boiler boil animation for bg effect */
-@keyframes boilRipple {
-  0%   { transform: scale(1); opacity: 0.4; }
-  50%  { transform: scale(1.15); opacity: 0.15; }
-  100% { transform: scale(1.3); opacity: 0; }
-}
-
-/* PWA Install Banner */
-.pwa-banner {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 9999;
-  background: linear-gradient(135deg, #1a1200, #0d0800);
-  border-top: 1px solid rgba(201,168,51,0.4);
-  padding: 14px 16px max(env(safe-area-inset-bottom, 14px), 14px);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  animation: slideUp 0.3s ease-out;
-}
-
-/* Train type badge */
-.train-type-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-family: monospace;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: .08em;
-}
-.train-type-steam    { background: rgba(255,200,80,0.12); border: 1px solid rgba(255,180,60,0.3); color: rgba(255,200,100,0.8); }
-.train-type-diesel   { background: rgba(100,80,50,0.15); border: 1px solid rgba(120,90,60,0.3);  color: rgba(180,140,80,0.8);  }
-.train-type-electric { background: rgba(80,160,255,0.1); border: 1px solid rgba(80,160,255,0.3); color: rgba(120,200,255,0.8); }
-.train-type-maglev   { background: rgba(160,100,255,0.1);border: 1px solid rgba(160,100,255,0.3);color: rgba(180,140,255,0.8); }
-
-/* Larger touch targets for mobile */
-@media (max-width: 480px) {
-  button, .nav-btn { min-height: 44px; }
-  .nav-btn { min-height: 52px; }
-}
-
-/* iOS momentum scroll */
-.ios-scroll {
-  -webkit-overflow-scrolling: touch;
-  overflow-y: scroll;
-}
-
-/* Prevent double-tap zoom on buttons */
-button, a {
-  touch-action: manipulation;
-}
-
-/* Card modal backdrop on mobile — full bleed */
-@media (max-width: 600px) {
-  .card-modal-backdrop {
-    border-radius: 0;
-  }
-}
-
-/* Animated gradient background for modal */
-@keyframes gradientShift {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-
-/* Oil drip effect */
-@keyframes oilDrip {
-  0%   { height: 0; opacity: 0.8; }
-  80%  { opacity: 0.6; }
-  100% { height: 20px; opacity: 0; }
+.card-shine-spot {
+  position:absolute; inset:0; pointer-events:none; border-radius:inherit; z-index:11;
+  opacity:0; transition:opacity 0.15s;
+  background: radial-gradient(ellipse 55% 45% at var(--sx,50%) var(--sy,50%),rgba(255,255,255,.22) 0%,transparent 70%);
 }
 
-/* Maglev shimmer */
-@keyframes maglevShimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
+/* ── PWA Install Banner ────────────────────────────────── */
+.pwa-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+  background: linear-gradient(135deg, #1a1200, #0d0800);
+  border-top: 1px solid rgba(201,168,51,0.35);
+  animation: slideUp 0.3s ease-out;
+}
+
+/* ── Responsive: Desktop hides the game, shows landing ── */
+/* Mobile-first: game is always visible */
+.mobile-only { display: flex; flex-direction: column; height: 100%; }
+.desktop-only { display: none; }
+
+@media (min-width: 769px) and (hover: hover) and (pointer: fine) {
+  .mobile-only { display: none !important; }
+  .desktop-only { display: flex !important; }
 }
