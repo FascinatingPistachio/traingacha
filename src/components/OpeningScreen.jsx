@@ -174,15 +174,6 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
           );
         })}
       </div>
-                  onClick={() => { soundClick(); setPreview(card); }}
-                />
-              ) : (
-                <CardBack onClick={() => flip(i)} />
-              )}
-            </div>
-          );
-        })}
-      </div>
 
       {/* Best pull highlight */}
       {best && (RARITY[best.rarity]?.rank ?? 0) >= 2 && (
