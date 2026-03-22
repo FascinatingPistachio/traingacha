@@ -181,7 +181,7 @@ html, body, #root { height: 100%; background: #06101c; color: #e8e0d0; font-fami
 /* ── Particle sparks ── */
 @keyframes spark {
   0%   { transform: translate(0,0) scale(1); opacity: 1; }
-  100% { transform: translate(var(--sx),var(--sy)) scale(0); opacity: 0; }
+  100% { transform: translate(var(--tx,40px),var(--ty,-40px)) scale(0); opacity: 0; }
 }
 .spark {
   position: absolute;
@@ -201,19 +201,6 @@ html, body, #root { height: 100%; background: #06101c; color: #e8e0d0; font-fami
 .coll-card-wrap:active { transform: scale(0.97); }
 
 /* ── Rarity glow pulse ── */
-@keyframes legendGlow {
-  0%,100% { box-shadow: 0 0 14px rgba(232,192,64,0.35), 0 4px 20px rgba(0,0,0,0.7); }
-  50%      { box-shadow: 0 0 28px rgba(232,192,64,0.7),  0 4px 20px rgba(0,0,0,0.7); }
-}
-@keyframes mythicGlow {
-  0%   { box-shadow: 0 0 20px rgba(140,100,255,0.5); }
-  33%  { box-shadow: 0 0 20px rgba(100,200,255,0.5); }
-  66%  { box-shadow: 0 0 20px rgba(255,100,200,0.5); }
-  100% { box-shadow: 0 0 20px rgba(140,100,255,0.5); }
-}
-.glow-L { animation: legendGlow 2s ease-in-out infinite; }
-.glow-M { animation: mythicGlow 2s linear infinite; }
-
 /* ── Modal backdrop blur ── */
 @keyframes backdropIn {
   from { opacity: 0; backdrop-filter: blur(0px); }
@@ -272,3 +259,40 @@ html, body, #root { height: 100%; background: #06101c; color: #e8e0d0; font-fami
 }
 .glow-L { animation: legendGlow 2s ease-in-out infinite; }
 .glow-M { animation: mythicGlow 2s linear infinite; }
+
+/* ── Extra polish animations ─────────────────────────────────────────────── */
+/* Card glow pulses */
+@keyframes legendGlow {
+  0%,100% { box-shadow: 0 0 16px rgba(232,192,64,0.4),  0 4px 24px rgba(0,0,0,0.7); }
+  50%      { box-shadow: 0 0 32px rgba(232,192,64,0.75), 0 4px 24px rgba(0,0,0,0.7); }
+}
+@keyframes mythicGlow {
+  0%   { box-shadow: 0 0 22px rgba(140,100,255,0.55); }
+  33%  { box-shadow: 0 0 22px rgba(100,200,255,0.55); }
+  66%  { box-shadow: 0 0 22px rgba(255,100,200,0.55); }
+  100% { box-shadow: 0 0 22px rgba(140,100,255,0.55); }
+}
+.glow-L { animation: legendGlow 2s ease-in-out infinite; }
+.glow-M { animation: mythicGlow 1.8s linear infinite; }
+
+/* Stat bar fill animation */
+@keyframes statFill {
+  from { width:0%; }
+  to   { width:var(--w,100%); }
+}
+.stat-bar-fill {
+  animation: statFill 0.85s cubic-bezier(0.25,1,0.5,1) both;
+  animation-delay: var(--delay,0s);
+}
+
+/* shimmer */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position:-200% 0; }
+}
+
+/* number count up */
+@keyframes countUp {
+  from { opacity:0; transform:translateY(6px); }
+  to   { opacity:1; transform:translateY(0); }
+}
