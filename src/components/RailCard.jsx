@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { RARITY } from '../constants.js';
 import { fetchFandomCharacterImage } from '../utils/fandom.js';
+import { fetchWikiThumbnail } from '../utils/wikiImage.js';
 import { STAT_CONFIG, statPercent } from '../utils/stats.js';
 import '../styles/cards.css';
 
@@ -13,36 +14,53 @@ const SZ = {
 const STARS     = { C:1, R:2, E:3, L:4, M:4 };
 const HDR_COLOR = { C:'#1a2a3a', R:'#071426', E:'#130620', L:'#1a0e00', M:'#02020a' };
 
-// ── Card image with loading/error states ────────────────────────────────────
-function CardImage({ src, alt, height }) {
-  const [status, setStatus] = useState('loading');
+// Card image — handles loading, errors, and null src (lazy Wikipedia fetch)
+function CardImage({ src, alt, height, title }) {
+  const [resolvedSrc, setResolvedSrc] = useState(src);
+  const [status, setStatus] = useState(src ? 'loading' : 'fetching');
   const ref = useRef(null);
-  useEffect(() => { setStatus('loading'); }, [src]);
+
+  // If src is null/undefined, try fetching from Wikipedia
+  useEffect(() => {
+    if (src) { setResolvedSrc(src); setStatus('loading'); return; }
+    if (!title) { setStatus('error'); return; }
+    setStatus('fetching');
+    fetchWikiThumbnail(title, 400)
+      .then(url => {
+        if (url) { setResolvedSrc(url); setStatus('loading'); }
+        else setStatus('error');
+      })
+      .catch(() => setStatus('error'));
+  }, [src, title]);
+
   useEffect(() => {
     const img = ref.current;
-    if (img?.complete) setStatus(img.naturalWidth > 0 ? 'loaded' : 'error');
-  }, [src]);
+    if (img?.complete && status === 'loading')
+      setStatus(img.naturalWidth > 0 ? 'loaded' : 'error');
+  }, [resolvedSrc, status]);
   return (
-    <div style={{ width:'100%', height, position:'relative', overflow:'hidden', background:'#e8e8e8' }}>
-      {status === 'loading' && (
-        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(240,240,240,0.6)' }}>
-          <div className="spinner" style={{ borderColor:'rgba(0,0,0,0.1)', borderTopColor:'rgba(0,0,0,0.4)' }} />
+    <div style={{ width:'100%', height, position:'relative', overflow:'hidden', background:'#1a2535' }}>
+      {(status === 'loading' || status === 'fetching') && (
+        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div className="spinner" style={{ borderColor:'rgba(255,255,255,0.08)', borderTopColor:'rgba(255,255,255,0.35)' }} />
         </div>
       )}
       {status === 'error' && (
-        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'#dde2e7' }}>
+        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'linear-gradient(135deg,#1a2535,#0d1822)', gap:4 }}>
           <svg width="32" height="18" viewBox="0 0 80 42" fill="none">
-            <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(0,0,0,0.15)"/>
-            <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(0,0,0,0.1)"/>
-            <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth="2"/>
-            <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth="2"/>
+            <rect x="8" y="14" width="50" height="18" rx="4" fill="rgba(255,255,255,0.08)"/>
+            <rect x="50" y="10" width="20" height="22" rx="3" fill="rgba(255,255,255,0.06)"/>
+            <circle cx="20" cy="34" r="7" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2"/>
+            <circle cx="40" cy="34" r="7" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2"/>
           </svg>
         </div>
       )}
-      <img ref={ref} src={src} alt={alt}
-        onLoad={() => setStatus('loaded')} onError={() => setStatus('error')}
-        style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
-          opacity:status==='loaded'?1:0, transition:'opacity 0.3s' }} />
+      {resolvedSrc && (
+        <img ref={ref} src={resolvedSrc} alt={alt}
+          onLoad={() => setStatus('loaded')} onError={() => setStatus('error')}
+          style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
+            opacity:status==='loaded'?1:0, transition:'opacity 0.3s' }} />
+      )}
     </div>
   );
 }
@@ -172,7 +190,7 @@ export default function RailCard({
 
       {/* ── Card image ──────────────────────────────────────────────────── */}
       <div style={{ position:'relative', flexShrink:0 }}>
-        <CardImage src={card.image} alt={card.title} height={sz.imgH} />
+        <CardImage src={card.image} alt={card.title} height={sz.imgH} title={card.title} />
 
         {/* Thomas & Friends banner strip */}
         {isTF && !dimmed && (

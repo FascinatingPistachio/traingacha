@@ -1,3 +1,4 @@
+import { fetchWikiThumbnail } from '../utils/wikiImage.js';
 import { useState, useEffect, useCallback } from 'react';
 import { STAT_CONFIG, generateCardStats, statPercent, formatStat } from '../utils/stats.js';
 import { BATTLE_WIN_TICKETS, BATTLE_LOSS_TICKETS, RARITY } from '../constants.js';
@@ -39,7 +40,7 @@ function buildBotCard(raw, i, diff) {
   return {
     id: `bot_${diff}_${i}`,
     title: raw.title,
-    image: `https://en.wikipedia.org/w/index.php?title=Special:Redirect/file/${encodeURIComponent(raw.title.replace(/ /g,'_'))}.jpg`,
+    image: null,  // loaded lazily via wikiImage
     extract: `${raw.title} — a real locomotive.`,
     rarity: raw.rarity,
     views: raw.views,

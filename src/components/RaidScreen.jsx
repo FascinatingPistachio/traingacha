@@ -1,3 +1,4 @@
+import { fetchWikiThumbnail } from '../utils/wikiImage.js';
 import { useState, useEffect } from 'react';
 import { generateCardStats, STAT_CONFIG, statPercent, formatStat } from '../utils/stats.js';
 import { RAID_WIN_TICKETS, RARITY } from '../constants.js';
@@ -31,7 +32,7 @@ function buildBossCard(boss) {
   return {
     id: `raid_boss_${boss.title.replace(/\W/g,'_')}`,
     title: boss.title,
-    image: `https://en.wikipedia.org/w/index.php?title=Special:Redirect/file/${encodeURIComponent(boss.title.replace(/ /g,'_'))}.jpg`,
+    image: null,
     extract: `Today's raid boss. Weakness: ${boss.weakness.toUpperCase()}.`,
     rarity: boss.rarity,
     views: boss.views,
