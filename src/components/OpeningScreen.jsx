@@ -4,6 +4,7 @@ import CardDetailModal from './CardDetailModal.jsx';
 import PackAnimation from './PackAnimation.jsx';
 import { RARITY } from '../constants.js';
 import { soundFlip, soundPackHover, soundClick } from '../utils/sounds.js';
+import { preloadCardImagesComplete } from '../utils/preload.js';
 
 // ── Card back (face-down) ────────────────────────────────────────────────────
 function CardBack({ onClick }) {
@@ -221,7 +222,10 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
     try {
       const result = await promiseRef.current;
       const arr = Array.isArray(result) ? result : (result?.cards ?? []);
-      setCards(arr.filter(Boolean));
+      const validCards = arr.filter(Boolean);
+      // Preload all images BEFORE showing cards — no loading spinners
+      await preloadCardImagesComplete(validCards, 5000);
+      setCards(validCards);
     } catch {
       setCards([]);
     }
