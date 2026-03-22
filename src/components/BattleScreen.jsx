@@ -1,8 +1,15 @@
 import { fetchWikiThumbnail } from '../utils/wikiImage.js';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { STAT_CONFIG, generateCardStats, statPercent, formatStat } from '../utils/stats.js';
 import { BATTLE_WIN_TICKETS, BATTLE_LOSS_TICKETS, RARITY } from '../constants.js';
 import RailCard from './RailCard.jsx';
+import TrainVFX, { burstVFX } from './TrainVFX.jsx';
+import { detectTrainType, trainTypeEmoji } from '../utils/trainType.js';
+import {
+  soundPlayCard, soundStatWin, soundStatLose, soundStatDraw,
+  soundBattleVictory, soundBattleDefeat, soundLegendaryBoom,
+  soundChugChug, soundValveClank,
+} from '../utils/sounds.js';
 import RaidScreen from './RaidScreen.jsx';
 
 // ── Bot definitions ─────────────────────────────────────────────────────────
@@ -124,22 +131,39 @@ export default function BattleScreen({ collection, onEarn }) {
   const pickStat = (statKey) => {
     if (chosenStat) return;
     setChosenStat(statKey);
-    const pVal = playerCard?.stats?.[statKey] ?? 0;
-    // Bot picks its stat based on difficulty
-    const bStatKey = botPickStat(botCard, selectedBot?.difficulty ?? 'easy');
-    const bVal = botCard?.stats?.[bStatKey] ?? 0;
-    // Compare player's chosen stat vs bot's same stat (both pick from same pool)
+
+    // Play player's train sound
+    const playerTrainType = detectTrainType(playerCard?.title ?? '');
+    const botTrainType    = detectTrainType(botCard?.title ?? '');
+    soundPlayCard(playerTrainType);
+    setTimeout(() => soundPlayCard(botTrainType), 400);
+
+    const pVal    = playerCard?.stats?.[statKey] ?? 0;
     const bValSame = botCard?.stats?.[statKey] ?? 0;
     const res = pVal > bValSame ? 'win' : pVal < bValSame ? 'lose' : 'draw';
     const newScores = { player: scores.player+(res==='win'?1:0), bot: scores.bot+(res==='lose'?1:0) };
     setRoundResult(res);
     setScores(newScores);
+
+    // Result SFX
+    setTimeout(() => {
+      if (res === 'win')  soundStatWin();
+      else if (res === 'lose') soundStatLose();
+      else soundStatDraw();
+    }, 500);
+
     // 8% chance to draft bot card on win
     if (res === 'win' && Math.random() < 0.08 && botCard && !draftedCard) setDraftedCard(botCard);
+
     setTimeout(() => {
       const nr = round+1;
-      if (nr >= 5 || newScores.player >= 3 || newScores.bot >= 3) setPhase('result');
-      else { setRound(nr); setPhase('pre'); }
+      if (nr >= 5 || newScores.player >= 3 || newScores.bot >= 3) {
+        setPhase('result');
+        setTimeout(() => {
+          if (newScores.player > newScores.bot) soundBattleVictory();
+          else soundBattleDefeat();
+        }, 200);
+      } else { setRound(nr); setPhase('pre'); }
     }, 2000);
   };
 
@@ -252,11 +276,26 @@ export default function BattleScreen({ collection, onEarn }) {
   if ((phase === 'battle' || phase === 'pre') && playerCard && botCard) {
     const pStats = playerCard.stats ?? {};
     const bStats = botCard.stats ?? {};
+    const playerTrainType = detectTrainType(playerCard.title ?? '');
+    const botTrainType    = detectTrainType(botCard.title ?? '');
 
     return (
       <div>
         <SubNav />
-        <div style={{ padding:'10px 8px', display:'flex', flexDirection:'column', gap:10 }}>
+        <div
+          className={roundResult === 'win' ? 'flash-win' : roundResult === 'lose' ? 'flash-lose' : ''}
+          style={{ padding:'10px 8px', display:'flex', flexDirection:'column', gap:10, position:'relative' }}>
+
+          {/* Ambient track lines VFX */}
+          <div aria-hidden style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none', opacity:0.06 }}>
+            {[15,35,55,75,90].map(pct => (
+              <div key={pct} style={{
+                position:'absolute', left:0, right:0, top:`${pct}%`, height:1,
+                background:'linear-gradient(90deg, transparent, rgba(201,168,51,0.8), transparent)',
+              }} />
+            ))}
+          </div>
+
           {/* Scoreboard */}
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
             background:'rgba(255,255,255,0.02)', borderRadius:8, padding:'8px 12px',
@@ -278,7 +317,26 @@ export default function BattleScreen({ collection, onEarn }) {
           <div style={{ display:'flex', gap:8, justifyContent:'center', alignItems:'flex-start' }}>
             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5 }}>
               <div style={{ fontSize:7.5, color:'rgba(255,255,255,0.4)', fontFamily:'monospace', letterSpacing:'.1em' }}>YOU</div>
-              <RailCard card={playerCard} size="md" />
+              <div style={{ fontSize:8, color:'rgba(255,255,255,0.25)', fontFamily:'monospace', marginBottom:2 }}>
+                {trainTypeEmoji(playerCard.title)}
+              </div>
+              <div style={{ position:'relative' }}>
+                {/* Steam wisps on player card */}
+                {playerTrainType === 'steam' && (
+                  <div style={{ position:'absolute', top:-8, left:'50%', transform:'translateX(-50%)', pointerEvents:'none', zIndex:5 }}>
+                    {[0,1,2].map(j => (
+                      <div key={j} style={{ position:'absolute', width:8+j*4, height:8+j*4, borderRadius:'50%',
+                        background:'rgba(210,230,255,0.2)', filter:'blur(4px)', left:(j-1)*12,
+                        animation:`steamPuff ${1.3+j*0.3}s ease-out infinite`, animationDelay:`${j*0.4}s` }} />
+                    ))}
+                  </div>
+                )}
+                {playerTrainType === 'electric' && (
+                  <div style={{ position:'absolute', inset:0, borderRadius:8, pointerEvents:'none', zIndex:5,
+                    boxShadow:'0 0 16px rgba(80,160,255,0.25)', animation:'epicGlow 1.5s ease-in-out infinite' }} />
+                )}
+                <RailCard card={playerCard} size="md" />
+              </div>
             </div>
             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
               paddingTop:50, gap:6, minWidth:32 }}>
@@ -294,12 +352,54 @@ export default function BattleScreen({ collection, onEarn }) {
               <div style={{ fontSize:7.5, color:selectedBot?.color, fontFamily:'monospace', letterSpacing:'.1em' }}>
                 {selectedBot?.emoji}
               </div>
-              {chosenStat ? <RailCard card={botCard} size="md" /> : (
-                <div style={{ width:162, height:243, borderRadius:8, background:'#0a1218',
-                  border:'1.5px solid rgba(255,255,255,0.06)', display:'flex', alignItems:'center',
-                  justifyContent:'center', flexDirection:'column', gap:6 }}>
-                  <div style={{ fontSize:28 }}>🚂</div>
-                  <div style={{ fontSize:9, color:'rgba(255,255,255,0.2)', fontFamily:'monospace' }}>HIDDEN</div>
+              {chosenStat && (
+                <div style={{ fontSize:8, color:'rgba(255,255,255,0.25)', fontFamily:'monospace', marginBottom:2 }}>
+                  {trainTypeEmoji(botCard.title)}
+                </div>
+              )}
+              {chosenStat ? (
+                <div style={{ position:'relative' }}>
+                  {botTrainType === 'steam' && (
+                    <div style={{ position:'absolute', top:-8, left:'50%', transform:'translateX(-50%)', pointerEvents:'none', zIndex:5 }}>
+                      {[0,1].map(j => (
+                        <div key={j} style={{ position:'absolute', width:8+j*4, height:8+j*4, borderRadius:'50%',
+                          background:'rgba(200,220,255,0.2)', filter:'blur(4px)', left:(j-0.5)*10,
+                          animation:`steamPuff ${1.2+j*0.3}s ease-out infinite`, animationDelay:`${j*0.5}s` }} />
+                      ))}
+                    </div>
+                  )}
+                  {botTrainType === 'diesel' && (
+                    <div style={{ position:'absolute', top:-6, left:'50%', transform:'translateX(-50%)', pointerEvents:'none', zIndex:5 }}>
+                      {[0,1].map(j => (
+                        <div key={j} style={{ position:'absolute', width:10+j*5, height:10+j*5, borderRadius:'50%',
+                          background:'rgba(60,50,35,0.4)', filter:'blur(6px)', left:(j-0.5)*12,
+                          animation:`smokeBillow ${1.8+j*0.4}s ease-out infinite`, animationDelay:`${j*0.6}s` }} />
+                      ))}
+                    </div>
+                  )}
+                  <RailCard card={botCard} size="md" />
+                </div>
+              ) : (
+                <div style={{ width:162, height:243, borderRadius:8,
+                  background:'linear-gradient(145deg,#0a1218,#060e16)',
+                  border:'1.5px solid rgba(201,168,51,0.12)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  flexDirection:'column', gap:6, position:'relative', overflow:'hidden' }}>
+                  {/* Animated track pattern */}
+                  <div style={{ position:'absolute', inset:0, opacity:0.04,
+                    backgroundImage:'repeating-linear-gradient(90deg,#c9a833 0,#c9a833 1px,transparent 0,transparent 20px)',
+                  }} />
+                  <div style={{ fontSize:32, animation:'packBob 1.5s ease-in-out infinite' }}>🚂</div>
+                  <div style={{ fontSize:8, color:'rgba(255,255,255,0.18)', fontFamily:'monospace',
+                    letterSpacing:'.15em', animation:'pulse 1.5s ease-in-out infinite' }}>HIDDEN</div>
+                  {/* Steam leaking out */}
+                  <div style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', pointerEvents:'none' }}>
+                    {[0,1,2].map(j => (
+                      <div key={j} style={{ position:'absolute', width:6+j*3, height:6+j*3, borderRadius:'50%',
+                        background:'rgba(200,220,255,0.12)', filter:'blur(3px)', left:(j-1)*8,
+                        animation:`steamPuff ${1+j*0.25}s ease-out infinite`, animationDelay:`${j*0.35}s` }} />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

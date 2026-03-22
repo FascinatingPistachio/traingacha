@@ -11,6 +11,7 @@ import BottomNav        from './components/BottomNav.jsx';
 import Toast            from './components/Toast.jsx';
 import Footer           from './components/Footer.jsx';
 import AchievementToast from './components/AchievementToast.jsx';
+import PWAInstallBanner from './components/PWAInstallBanner.jsx';
 
 import { drawPack, updatePity }                              from './utils/gacha.js';
 import { loadSave, writeSave, deleteSave, makeFreshSave }    from './utils/storage.js';
@@ -282,22 +283,26 @@ export default function App() {
 
   if (screen === 'opening') {
     return (
-      <div style={{ background:'#06101c', minHeight:'100vh', paddingBottom:56 }}>
+      <div className="app-shell">
         {toast && <Toast message={toast.message} type={toast.type} />}
         {achToast}
+        <PWAInstallBanner />
         <TopBar tickets={save.tickets} />
-        <OpeningScreen cardsPromise={cardsPromise} onDone={handleOpeningDone} />
+        <div className="scroll-area" style={{ flex:1, overflowY:'auto' }}>
+          <OpeningScreen cardsPromise={cardsPromise} onDone={handleOpeningDone} />
+        </div>
         <BottomNav screen="opening" setScreen={handleSetScreen} />
       </div>
     );
   }
 
   return (
-    <div style={{ background:'#06101c', minHeight:'100vh', paddingBottom:62 }}>
+    <div className="app-shell">
       {toast && <Toast message={toast.message} type={toast.type} />}
       {achToast}
+      <PWAInstallBanner />
       <TopBar tickets={save.tickets} />
-      <div className="scroll-area" style={{ height:'calc(100vh - 44px - 56px)', overflowY:'auto' }}>
+      <div className="scroll-area" style={{ flex:1, overflowY:'auto' }}>
         {screen === 'home'       && <HomeScreen       save={save} onDaily={handleDaily} onPack={handlePack} goShop={() => handleSetScreen('shop')} />}
         {screen === 'shop'       && <ShopScreen       save={save} onPack={handlePack} onClaimCharges={handleClaimCharges} onWatchAd={handleWatchAd} />}
         {screen === 'collection' && <CollectionScreen collection={save.collection} favourites={favSet} onToggleFav={handleToggleFav} />}

@@ -3,7 +3,8 @@ import RailCard from './RailCard.jsx';
 import CardDetailModal from './CardDetailModal.jsx';
 import PackAnimation from './PackAnimation.jsx';
 import { RARITY } from '../constants.js';
-import { soundFlip, soundPackHover, soundClick } from '../utils/sounds.js';
+import { soundFlip, soundPackHover, soundClick, soundSteamHiss, soundDieselRumble, soundElectricSpark, soundHighSpeedWhoosh, soundLegendaryBoom } from '../utils/sounds.js';
+import { detectTrainType } from '../utils/trainType.js';
 import { preloadCardImagesComplete } from '../utils/preload.js';
 
 // ── Card back ─────────────────────────────────────────────────────────────────
@@ -89,7 +90,19 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
 
   const flip = (i) => {
     if (shown.has(i)) { soundClick(); setPreview(cards[i]); return; }
-    soundFlip(cards[i]?.rarity ?? 'C');
+    const card = cards[i];
+    soundFlip(card?.rarity ?? 'C');
+    // Play train-type sound after flip sound
+    setTimeout(() => {
+      const tt = detectTrainType(card?.title ?? '');
+      if (tt === 'steam')    soundSteamHiss();
+      else if (tt === 'diesel')   soundDieselRumble();
+      else if (tt === 'electric') soundElectricSpark();
+      else if (tt === 'maglev')   soundHighSpeedWhoosh();
+      if (card?.rarity === 'L' || card?.rarity === 'M') {
+        setTimeout(() => soundLegendaryBoom(), 300);
+      }
+    }, 350);
     setShown(prev => new Set([...prev, i]));
   };
 
@@ -124,12 +137,43 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
         marginBottom:28 }}>
         {cards.map((card, i) => {
           const isShown = shown.has(i);
+          const trainType = detectTrainType(card?.title ?? '');
           return (
-            <div key={i} style={{ animation: isShown ? 'flipIn 0.5s cubic-bezier(0.22,1,0.36,1) both' : 'none' }}>
+            <div key={i} style={{ position:'relative', animation: isShown ? 'flipIn 0.5s cubic-bezier(0.22,1,0.36,1) both' : 'none' }}>
               {isShown ? (
-                <RailCard
-                  card={card}
-                  size="md"
+                <>
+                  {trainType === 'steam' && (
+                    <div style={{ position:'absolute', top:-10, left:'50%', transform:'translateX(-50%)', pointerEvents:'none', zIndex:5 }}>
+                      {[0,1,2].map(j => (
+                        <div key={j} style={{ position:'absolute', width:10+j*5, height:10+j*5, borderRadius:'50%',
+                          background:'rgba(220,235,255,0.22)', filter:'blur(5px)',
+                          left:(j-1)*16, animation:`steamPuff ${1.4+j*0.35}s ease-out infinite`, animationDelay:`${j*0.45}s` }} />
+                      ))}
+                    </div>
+                  )}
+                  {trainType === 'electric' && (
+                    <div style={{ position:'absolute', inset:0, borderRadius:8, pointerEvents:'none', zIndex:5,
+                      boxShadow:'0 0 16px rgba(80,180,255,0.2), inset 0 0 12px rgba(80,160,255,0.08)' }} />
+                  )}
+                  {trainType === 'maglev' && (
+                    <div style={{ position:'absolute', bottom:-4, left:0, right:0, height:4, borderRadius:'0 0 4px 4px',
+                      background:'linear-gradient(90deg, transparent, rgba(160,100,255,0.5), transparent)',
+                      animation:'maglevShimmer 1.5s linear infinite', backgroundSize:'200% 100%',
+                      pointerEvents:'none', zIndex:5 }} />
+                  )}
+                  <RailCard
+                    card={card}
+                    size="md"
+                    onClick={() => { soundClick(); setPreview(card); }}
+                  />
+                </>
+              ) : (
+                <CardBack onClick={() => flip(i)} />
+              )}
+            </div>
+          );
+        })}
+      </div>
                   onClick={() => { soundClick(); setPreview(card); }}
                 />
               ) : (

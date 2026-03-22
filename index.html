@@ -2,13 +2,70 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rail Gacha</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Rail Gacha" />
+    <meta name="theme-color" content="#c9a833" />
     <meta name="description" content="Collect train cards from Wikipedia. Open packs, discover rarities, complete your collection." />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Rail Gacha" />
+    <meta property="og:description" content="Collect train cards from Wikipedia." />
+    <meta property="og:type" content="website" />
+
+    <title>Rail Gacha</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🚂</text></svg>" />
+
+    <!-- Apple touch icon -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%2306101c'/><text y='140' x='10' font-size='130'>🚂</text></svg>" />
+
+    <style>
+      /* Prevent iOS bounce scroll */
+      html { height: 100%; overflow: hidden; }
+      body {
+        height: 100%; overflow: hidden;
+        /* Safe areas for notch/home bar */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        background: #06101c;
+        /* Prevent text selection on mobile */
+        -webkit-user-select: none; user-select: none;
+        /* Prevent tap highlights */
+        -webkit-tap-highlight-color: transparent;
+        /* Prevent iOS callout on long press */
+        -webkit-touch-callout: none;
+        overscroll-behavior: none;
+      }
+      #root { height: 100%; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Register service worker for PWA install
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+
+      // Capture beforeinstallprompt for custom install button
+      window._pwaInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window._pwaInstallPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-installable'));
+      });
+    </script>
   </body>
 </html>
