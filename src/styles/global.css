@@ -242,3 +242,33 @@ html, body, #root { height: 100%; background: #06101c; color: #e8e0d0; font-fami
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
 }
+
+/* ── Marvel Snap style card effects ─────────────────────────────────────── */
+.card-shine-spot {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 11;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: radial-gradient(
+    ellipse 55% 45% at var(--sx, 50%) var(--sy, 50%),
+    rgba(255,255,255,0.22) 0%,
+    transparent 70%
+  );
+}
+
+/* Rarity card glow animations */
+@keyframes legendGlow {
+  0%,100% { box-shadow:0 0 14px rgba(232,192,64,0.35),0 4px 20px rgba(0,0,0,0.7); }
+  50%      { box-shadow:0 0 30px rgba(232,192,64,0.7), 0 4px 20px rgba(0,0,0,0.7); }
+}
+@keyframes mythicGlow {
+  0%   { box-shadow:0 0 20px rgba(140,100,255,0.5),0 4px 20px rgba(0,0,0,0.7); }
+  33%  { box-shadow:0 0 20px rgba(100,200,255,0.5),0 4px 20px rgba(0,0,0,0.7); }
+  66%  { box-shadow:0 0 20px rgba(255,100,200,0.5),0 4px 20px rgba(0,0,0,0.7); }
+  100% { box-shadow:0 0 20px rgba(140,100,255,0.5),0 4px 20px rgba(0,0,0,0.7); }
+}
+.glow-L { animation: legendGlow 2s ease-in-out infinite; }
+.glow-M { animation: mythicGlow 2s linear infinite; }

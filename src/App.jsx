@@ -286,7 +286,7 @@ export default function App() {
         {toast && <Toast message={toast.message} type={toast.type} />}
         {achToast}
         <TopBar tickets={save.tickets} />
-        <OpeningScreen cardsPromise={cardsPromise?.then?.(r => r?.cards ?? r) ?? cardsPromise} onDone={handleOpeningDone} />
+        <OpeningScreen cardsPromise={cardsPromise} onDone={handleOpeningDone} />
         <BottomNav screen="opening" setScreen={handleSetScreen} />
       </div>
     );
