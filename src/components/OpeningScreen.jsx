@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import RailCard from './RailCard.jsx';
 import CardDetailModal from './CardDetailModal.jsx';
 import PackAnimation from './PackAnimation.jsx';
 import { RARITY } from '../constants.js';
@@ -13,7 +14,7 @@ function CardBack({ onClick }) {
       onMouseEnter={() => { setHovered(true); soundPackHover(); }}
       onMouseLeave={() => setHovered(false)}
       style={{
-        width:148, height:210, borderRadius:10, cursor:'pointer',
+        width:160, height:240, borderRadius:8, cursor:'pointer',
         background:'linear-gradient(145deg,#0d1e35,#061020)',
         border:'2px solid rgba(201,168,51,0.35)',
         boxShadow: hovered
@@ -85,7 +86,7 @@ function RevealedCard({ card, onClick }) {
       onMouseMove={onMove}
       onMouseLeave={onLeave}
       style={{
-        width:148, borderRadius:10, cursor:'pointer',
+        width:160, borderRadius:8, cursor:'pointer',
         overflow:'hidden', flexShrink:0, position:'relative',
         border:`2px solid ${rs.border}`,
         background:`linear-gradient(180deg,#111e2d,#060f1c)`,
@@ -284,7 +285,9 @@ export default function OpeningScreen({ cardsPromise, onDone }) {
           return (
             <div key={i}>
               {isShown ? (
-                <RevealedCard card={card} onClick={() => { soundClick(); setPreview(card); }} />
+                <div onClick={() => { soundClick(); setPreview(card); }}>
+                  <RailCard card={card} size="md" />
+                </div>
               ) : (
                 <CardBack onClick={() => flip(i)} />
               )}
